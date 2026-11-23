@@ -17,6 +17,21 @@ Written for an agent that follows instructions literally. Follow it literally.
 11. Everything is for personal use and is never published. Do not upload outputs anywhere.
 12. For detail work you may use any tool and any online source (satellite and street imagery, videos, social media, shop listings). `DETAIL-STANDARD.md` lists them. Keep what you download out of git.
 
+## Git
+
+The project is a git repository on branch `main`. The owner publishes it on GitHub as a public repo. Rules:
+
+1. **Commits show only the owner.** Never add `Co-Authored-By`, "Generated with", a session link, or any mention of Codex, Claude or another AI tool, in a commit message, a pull request or a file. Commit with exactly:
+   `git -c user.name=AdamElHassanDev -c user.email=AdamElHassanDev@users.noreply.github.com commit -m "<message>"`
+   Do not change the global git config.
+2. **One commit per work package**, after `PROGRESS.md` is updated. Message: a plain sentence saying what changed, for example `WP8: road overrides for Btouratij`. Commit small fixes separately if they are unrelated.
+3. **Push** with `git push origin main` once the remote exists (`git remote -v`). If there is no remote, do not create one and do not push: write "not pushed, no remote" in `PROGRESS.md` and carry on. Never force-push.
+4. **The generator fork** lives in `openlaps/`, which is ignored by this repo and has its own git history on branch `koura`. After changing it: commit inside `openlaps/` with the same identity, then refresh the patch that this repo does track:
+   `git -C openlaps diff d9e713c66c01417fb035c65b81d77093094742c6 HEAD > koura/openlaps_koura.patch`
+   and commit that patch here. The patch is how the fork changes reach GitHub.
+5. **Never commit** aerial imagery or anything rendered from it (not redistributable), built tracks (`*.kn5`, `out/`), caches, `recordings/`, `.venv/`, logs. `.gitignore` already covers these; if you add a new file of that kind, add it to `.gitignore` first. Run `git status --short` before every commit and read the list.
+6. Do not rewrite history (`rebase`, `commit --amend` on pushed commits, `reset --hard`).
+
 ## State on 2026-11-23: a real base already exists
 
 Read the 2026-11-23 rows of `PROGRESS.md` first. The fork is already in `openlaps/` on branch `koura` with the base changes committed, the environment is in `.venv`, and `koura/build.py S1` / `koura/build.py S2` build the stages (always under `ulimit -v 21000000`). Do not re-clone or re-apply patches. If `openlaps/` is missing (fresh checkout), clone the pinned commit and apply `koura/openlaps_koura.patch`. Continue from the work packages, treating what exists as a first version to bring up to each gate. The section below describes the earlier quick preview and is kept for history.

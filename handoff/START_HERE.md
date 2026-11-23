@@ -52,3 +52,5 @@ The owner should, if possible:
 3. Leave Steam running and logged in, and expect the game window to open by itself during work package 1.
 
 None of these block the work. Defaults are in `PROGRESS.md`.
+
+Git rules (owner-only commits, what never to commit, how the generator fork is published) are in the Git section of `RUN.md`.

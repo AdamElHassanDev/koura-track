@@ -15,3 +15,4 @@ Rules that hold for the whole project:
 - Karting Mania must be an exact copy of the real track and work as a real timed circuit (work package 11, steps 10 and 11).
 - The standard outside stage 1 is "it looks like the real drive", for the whole detailed ground, not only the strip beside the route.
 - `handoff/DETAIL-STANDARD.md` is the owner's quality bar. Any tool and any online source may be used for detail work.
+- Git: commits show only the owner (`AdamElHassanDev`), with no AI attribution of any kind. See the Git section of `handoff/RUN.md`.
