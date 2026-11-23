@@ -1,0 +1,201 @@
+"""Koura build driver. Reads handoff/inputs/zone.json, pins the origin, builds the stage's zone polygon and
+calls the fork's pipeline.  Usage (from the project root):
+
+    (ulimit -v 21000000; .venv/bin/python koura/build.py S1)        # or S2
+
+Options: --res N (terrain grid, default from zone.json), --buf M (override route buffer), --name ID,
+--no-imagery, --no-canopy.
+"""
+import sys, os, json, math, time, subprocess
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+os.environ.setdefault("OPENLAPS_CACHE", os.path.join(ROOT, "cache"))
+sys.path.insert(0, os.path.join(ROOT, "openlaps")); sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import numpy as np
+from concurrent.futures import ThreadPoolExecutor
+from shapely.geometry import LineString, Point, box
+from shapely.ops import unary_union
+from openlaps import pipeline
+from openlaps.__main__ import parser
+from openlaps.geo import BBox, LocalProjection
+from openlaps.sources import osm as OSM, rasters
+import kart_pts
+from openlaps import roads as _roads
+
+ZONE = json.load(open(os.path.join(ROOT, "handoff", "inputs", "zone.json")))
+V = ZONE["villages"]
+def opt(name, default=None):
+    return sys.argv[sys.argv.index(name) + 1] if name in sys.argv else default
+STAGE = sys.argv[1] if len(sys.argv) > 1 and not sys.argv[1].startswith("-") else "S1"
+RES = opt("--res", str(ZONE["stages"][STAGE].get("terrain_res_m", 4)))
+BUF = float(opt("--buf", 0)) or None
+NAME = opt("--name", "koura")
+OUT = os.path.join(ROOT, "out", STAGE)
+log = lambda *a: print(*a, flush=True)
+
+def parts_ll(stage):
+    out = []
+    for p in ZONE["stages"][stage]["parts"]:
+        if p["type"] == "stage": out += parts_ll(p["ref"])
+        elif p["type"] == "route_buffer": out.append(("line", (ZONE["routes"][p["route"]]["polyline"], BUF or p["metres"])))
+        elif p["type"] == "disc": v = V[p["village"]]; out.append(("disc", (v["lat"], v["lon"], p["metres"])))
+        elif p["type"] == "box": out.append(("box", p))
+    return out
+PARTS = parts_ll(STAGE)
+
+def zona_fn(proj):
+    gs = []
+    for k, d in PARTS:
+        if k == "box":
+            x0, y0 = proj.to_local(d["west"], d["south"]); x1, y1 = proj.to_local(d["east"], d["north"])
+            gs.append(box(float(x0), float(y0), float(x1), float(y1)))
+        elif k == "line":
+            pl, m = d
+            x, y = proj.to_local([p[1] for p in pl], [p[0] for p in pl])
+            gs.append(LineString(np.column_stack([x, y])).buffer(m, quad_segs=4))
+        else:
+            x, y = proj.to_local(d[1], d[0]); gs.append(Point(float(x), float(y)).buffer(d[2], quad_segs=8))
+    return unary_union(gs).buffer(0)
+
+# ---- pinned origin and build rectangle (local metres) from zone.json
+O = ZONE["origin"]
+rect = tuple(float(v) for v in ZONE["stages"][STAGE]["expected"]["rect_local_m"])
+proj = LocalProjection.marco(O["lat"], O["lon"], rect)
+bbox = proj.bbox()
+zona = zona_fn(proj)
+log(f"stage {STAGE}: rect {rect}, zone {zona.area / 1e6:.2f} km2 (expected {ZONE['stages'][STAGE]['expected']['zone_km2']}), origin {O['lat']},{O['lon']}")
+
+def fetch_osm():
+    cache = os.path.join(ROOT, "cache", "osm_koura.json")
+    if os.path.exists(cache):
+        return json.load(open(cache))
+    # snapshot for the whole S3 rectangle, so every stage is fed from the same data
+    r3 = tuple(float(v) for v in ZONE["stages"]["S3"]["expected"]["rect_local_m"])
+    big = LocalProjection.marco(O["lat"], O["lon"], r3).bbox().padded(300)
+    els, seen, N = [], set(), 3
+    for i in range(N):
+        for j in range(N):
+            q = BBox(big.south + (big.north - big.south) * i / N, big.west + (big.east - big.west) * j / N,
+                     big.south + (big.north - big.south) * (i + 1) / N, big.west + (big.east - big.west) * (j + 1) / N)
+            qt = OSM.query(q); ok = False
+            for attempt in range(12):
+                ep = OSM.ENDPOINTS[(attempt + 1) % len(OSM.ENDPOINTS)]
+                try:
+                    r = subprocess.run(["curl", "-s", "-m", "200", "-A", "osm-research-script/1.0", "--data-urlencode", "data=" + qt, ep],
+                                       capture_output=True, timeout=220)
+                    d = json.loads(r.stdout)
+                    if "elements" in d and not d.get("remark", "").startswith("runtime error"):
+                        ok = True; break
+                except Exception:  # noqa
+                    pass
+                time.sleep(6 + 4 * attempt)
+            if not ok:
+                raise SystemExit(f"OSM tile {i},{j} failed")
+            for el in d["elements"]:
+                key = (el["type"], el["id"])
+                if key not in seen:
+                    seen.add(key); els.append(el)
+            log(f"  osm tile {i},{j}: {len(d['elements'])} elements via {ep}")
+            time.sleep(3)
+    data = {"elements": els, "fetched": time.strftime("%Y-%m-%d")}
+    json.dump(data, open(cache, "w"))
+    return data
+
+def px2ll(p):
+    return {"lon": 35.851135 + p[0] * 0.0000026823, "lat": 34.328694 - p[1] * 0.0000022148}
+
+def inject_kart(data):
+    """Rough Karting Mania from hand-placed points on evidence/karting_mania_aerial.png (replaced by WP11)."""
+    els = data["elements"]; nid = [-1000]; ids = {}
+    def node(p):
+        if p not in ids:
+            nid[0] -= 1; ids[p] = nid[0]
+        return ids[p]
+    def way(wid, pts, width, name):
+        return {"type": "way", "id": wid, "tags": {"highway": "service", "width": str(width), "surface": "asphalt", "name": name, "lanes": "1"},
+                "nodes": [node(p) for p in pts], "geometry": [px2ll(p) for p in pts]}
+    e0 = px2ll(kart_pts.ENTR2[0]); best = None; c = math.cos(math.radians(34.33))
+    for el in els:
+        if el["type"] != "way" or "geometry" not in el or el.get("tags", {}).get("highway") not in ("unclassified", "residential", "tertiary", "secondary", "service", "track"):
+            continue
+        g = el["geometry"]
+        for k in range(len(g) - 1):
+            ax, ay = (g[k]["lon"] - e0["lon"]) * 111320 * c, (g[k]["lat"] - e0["lat"]) * 111320
+            bx, by = (g[k + 1]["lon"] - e0["lon"]) * 111320 * c, (g[k + 1]["lat"] - e0["lat"]) * 111320
+            dx, dy = bx - ax, by - ay; L2 = dx * dx + dy * dy
+            t = 0 if L2 == 0 else max(0, min(1, -(ax * dx + ay * dy) / L2))
+            d = math.hypot(ax + t * dx, ay + t * dy)
+            if best is None or d < best[0]:
+                best = (d, el, k, t)
+    d, el, k, t = best; g = el["geometry"]
+    jn = {"lon": g[k]["lon"] + t * (g[k + 1]["lon"] - g[k]["lon"]), "lat": g[k]["lat"] + t * (g[k + 1]["lat"] - g[k]["lat"])}
+    jid = node(("join",))
+    el["geometry"].insert(k + 1, jn); el["nodes"].insert(k + 1, jid)
+    log(f"  kart entrance joined to way {el['id']} at {d:.1f} m")
+    wE = way(-4, kart_pts.ENTR2, 5, "Karting Mania entrance"); wE["nodes"][0] = jid; wE["geometry"][0] = jn
+    els += [wE]
+    return data
+
+
+def kart_polygon():
+    """Asphalt outline of Karting Mania in local metres: the traced racing line widened to the track width, plus
+    the paddock strip. Built as one smooth surface by openlaps.roads._pista_kart."""
+    from scipy.interpolate import splprep, splev
+    from shapely.geometry import LinearRing, Polygon
+    from shapely.ops import unary_union
+    def loc(pts):
+        ll = [px2ll(p) for p in pts]
+        x, y = proj.to_local(np.array([q["lon"] for q in ll]), np.array([q["lat"] for q in ll]))
+        return np.c_[x, y]
+    P = loc(kart_pts.TRACK)
+    tck, _ = splprep([np.r_[P[:, 0], P[0, 0]], np.r_[P[:, 1], P[0, 1]]], s=len(P) * 0.15, per=True)
+    xs, ys = splev(np.linspace(0, 1, 1200), tck)
+    ring = LinearRing(np.c_[xs, ys])
+    poly = unary_union([ring.buffer(kart_pts.TRACK_WIDTH_M / 2, join_style=1), Polygon(loc(kart_pts.PADDOCK))]).buffer(0)
+    return poly, ring.length
+
+def prefetch_imagery():
+    """Download every zoom 18 tile under the zone (plus 150 m) in parallel, so the build only reads from disk."""
+    r = rasters.XYZRaster("lb_xyz", log=log)
+    z = zona.buffer(150)
+    x0, y0, x1, y1 = z.bounds
+    lon, lat = proj.to_lonlat(np.array([x0, x1]), np.array([y0, y1]))
+    px, py = r.tiles_for_lonlat(lon, lat)
+    txs = range(int(px.min() // 256), int(px.max() // 256) + 1); tys = range(int(py.min() // 256), int(py.max() // 256) + 1)
+    import shapely
+    todo = []
+    for tx in txs:
+        for ty in tys:
+            lo = (tx + 0.5) / r.n * 360 - 180
+            la = math.degrees(math.atan(math.sinh(math.pi * (1 - 2 * (ty + 0.5) / r.n))))
+            cx, cy = proj.to_local(lo, la)
+            if z.distance(Point(float(cx), float(cy))) < 130:
+                todo.append((tx, ty))
+    t0 = time.time()
+    with ThreadPoolExecutor(8) as ex:
+        res = list(ex.map(lambda t: r.fetch_tile(*t) is not None, todo))
+    log(f"  imagery prefetch: {sum(res)} of {len(todo)} tiles on disk in {time.time() - t0:.0f} s")
+    return sum(res), len(todo)
+
+argv = ["--bbox", f"{bbox.south},{bbox.west},{bbox.north},{bbox.east}", "--modo", "libre", "--ac", "--res", RES, "--mpp", "0.5",
+        "--region", "lb", "--nombre", NAME, "--titulo", opt("--title", "Koura"), "--salida", OUT]
+if "--no-imagery" in sys.argv: argv.append("--sin-orto")
+if "--no-canopy" in sys.argv: argv.append("--sin-dosel")
+args = parser().parse_args(argv)
+args.zona_fn = lambda p: zona
+sp = [s for s in ZONE["spawn_points"] if zona.contains(Point(*[float(v) for v in proj.to_local(s["lon"], s["lat"])]))]
+args.spawns = [tuple(float(v) for v in proj.to_local(s["lon"], s["lat"])) for s in sp]
+for i, s in enumerate(sp): log(f"slot {i}: {s['name']}")
+os.environ.setdefault("KOURA_CELDA", "0.5" if zona.area < 12e6 and (rect[2] - rect[0]) * (rect[3] - rect[1]) < 30e6 else "1.5")
+if "--no-imagery" not in sys.argv: prefetch_imagery()
+raw = inject_kart(fetch_osm())
+from openlaps import config as _C
+_C.CURB_HEIGHT = 0.05      # owner: kerbs were too high and broke the car; low enough to ride over
+_C.SIDEWALK_CLASSES = set()  # owner: the grey paved strips at junctions looked like parking strips and the kerbs broke the car.
+                             # Koura village roads have almost no pavements; WP12 adds real ones where they exist
+_kp, _kl = kart_polygon()
+if zona.contains(_kp.centroid):
+    _roads.KART = {"poly": _kp, "name": "Karting Mania"}
+    log(f"  Karting Mania: racing line {_kl:.0f} m, asphalt {_kp.area:.0f} m2")
+t0 = time.time()
+pipeline.run(args, proj=proj, osm_data=OSM.parse(raw))
+log(f"BUILD DONE in {time.time() - t0:.0f} s")

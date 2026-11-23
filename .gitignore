@@ -1,0 +1,20 @@
+poc/
+cache/
+out/
+salida/
+recordings/
+.venv/
+__pycache__/
+*.kn5
+.bootstrap/
+openlaps/
+mapcreator/
+road-to-assetto/
+out_*.log
+*.glb
+# aerial imagery and renders made from it: not redistributable
+handoff/evidence/karting_mania_aerial.png
+handoff/evidence/amioun_esri_z18_osm_overlay.jpg
+handoff/evidence/*top_down*.jpg
+handoff/evidence/btouratij_poc_c*.jpg
+handoff/evidence/*.log

@@ -1,0 +1,44 @@
+{
+ "about": "Places that opened or changed after the map sources were captured. The aerial imagery is dated 2024-01 and the building footprints are older still, so anything newer is missing or wrong unless it is listed here. The owner adds to this list; an agent fills in what it can from footage. Used by work package 9 step 9.",
+ "source_dates": {
+  "aerial_imagery": "2024-01",
+  "footprints": "unknown, older than the imagery",
+  "osm": "snapshot taken in work package 0"
+ },
+ "places": [
+  {
+   "name": "Knots",
+   "kind": "shop",
+   "village": "Btouratij area (inside the 1 km trial square centred on 34.3616, 35.8390)",
+   "lat": null,
+   "lon": null,
+   "side_of_road": null,
+   "opened": "recent, per owner 2026-11-23",
+   "sign_text": "Knots",
+   "status": "Owner drove the trial on 2026-11-23: the entrance road to Knots exists and is right, but there is no building. So the access road is in OpenStreetMap and the building is missing from the footprint data. Add the building under `add` in buildings.json. Exact position still needed: find it in the newest Btouratij videos, or from the owner.",
+   "new_building": true
+  },
+  {
+   "name": "Clutch N' Carb",
+   "kind": "car dealership with a coffee shop",
+   "village": "Bechmizzine",
+   "lat": null,
+   "lon": null,
+   "side_of_road": null,
+   "opened": "unverified; assumed recent",
+   "sign_text": "Clutch N' Carb",
+   "status": "on the Bishmizzine to Amioun shortcut road per listings; exact position needed"
+  },
+  {
+   "name": "Karting Mania",
+   "kind": "kart track with restaurant",
+   "village": "Kousba",
+   "lat": 34.3261,
+   "lon": 35.8525,
+   "opened": "before 2022; not new, but absent from OpenStreetMap",
+   "sign_text": "Karting Mania",
+   "status": "located on aerial imagery; built by work package 11"
+  }
+ ],
+ "entry_fields": "name, kind, village, lat, lon (or a description of where), side_of_road (left or right when driving in a stated direction), opened, sign_text, floors, new_building (true if the building itself is new, false if a shop opened in an existing building), photo (file under recordings/photos/)"
+}

@@ -1,0 +1,698 @@
+diff --git a/openlaps/export_ac.py b/openlaps/export_ac.py
+index 5e3853d..d183ceb 100644
+--- a/openlaps/export_ac.py
++++ b/openlaps/export_ac.py
+@@ -370,7 +370,7 @@ def write_track(scene, out_dir, track_id, info, map_lines, route=None, log=print
+         os.remove(ruta_trafico)
+     w(os.path.join("data", "lighting.ini"), "[LIGHTING]\nSUN_PITCH_ANGLE=45\nSUN_HEADING_ANGLE=-40\n")
+     ext_txt = ext_config(scene, info["lat"], info["lon"])
+-    if not info.get("es_semilla_vivo"):
++    if False:  # preview: no live-mode script
+         from . import vivo as V
+         V.escribir_lua(root, "", "", float(info["lat"]), float(info["lon"]),
+                        modo_espera=True, rect_horneado=info.get("rect"), pista=track_id)
+diff --git a/openlaps/pipeline.py b/openlaps/pipeline.py
+index bd1fc54..6fc1093 100644
+--- a/openlaps/pipeline.py
++++ b/openlaps/pipeline.py
+@@ -270,6 +270,16 @@ def run(args, log=print, proj=None, scene=None, osm_data=None, pedazo=None, cat_
+         cob.quieta = [g for g in cob.quieta if g.intersects(zona)]
+         cob.corriente = [g for g in cob.corriente if g.intersects(zona)]
+         log(f"  corredor: {zona.area / 1e6:.2f} km² de {area_km2:.1f} ({len(blds)} de {antes} edificios)")
++    zf = getattr(args, "zona_fn", None)
++    if zf is not None and zona is None:
++        zona = zf(proj).intersection(sbox(*rect))
++        net.acotar(zona)
++        osm = solo_en_zona(osm, proj, zona.buffer(30.0))
++        antes = len(blds)
++        blds = [b for b in blds if b["poly"].intersects(zona)]
++        cob.quieta = [g for g in cob.quieta if g.intersects(zona)]
++        cob.corriente = [g for g in cob.corriente if g.intersects(zona)]
++        log(f"  zona externa: {zona.area / 1e6:.2f} km² de {area_km2:.1f} ({len(blds)} de {antes} edificios)")
+     blds_poly_pre = unary_union([b["poly"] for b in blds]) if blds else None
+     has_gr = any(b["tags"].get("barrier") == "guard_rail" for b in osm.get("barriers", []))
+     rails = []
+@@ -315,7 +325,10 @@ def run(args, log=print, proj=None, scene=None, osm_data=None, pedazo=None, cat_
+         X.tv_cameras(scene, route)
+         info_run = "clockwise" if args.modo == "circuito" else "A-B"
+     elif pedazo is None:
+-        _place_free(scene, net, log=log)
++        if getattr(args, "spawns", None):
++            _place_spawns(scene, net, args.spawns, log=log)
++        else:
++            _place_free(scene, net, log=log)
+ 
+     # ------------------------------------------------------------ terreno
+     log("5/7 Terreno: tallado y textura…")
+@@ -438,8 +451,7 @@ def run(args, log=print, proj=None, scene=None, osm_data=None, pedazo=None, cat_
+     log(f"  {glb} ({size / 1e6:.1f} MB)")
+     if args.ac:
+         # el muro invisible de borde queda en el .glb, pero en AC estorbaría si el usuario activa el modo en vivo
+-        for k in [k for k in scene.pieces if k[0] == "col"]:
+-            del scene.pieces[k]
++        pass  # preview: keep the invisible edge wall and colliders
+         thumb = prev.copy()
+         thumb.thumbnail((512, 512))
+         bio = io.BytesIO()
+@@ -452,7 +464,7 @@ def run(args, log=print, proj=None, scene=None, osm_data=None, pedazo=None, cat_
+                     s2_years=f" ({', '.join(sorted(rasters.S2_YEARS))})" if rasters.S2_YEARS else "") + "".join("- " + a + chr(10) for a in R.attribution),
+                 "description": f"Generada con openlaps a partir de datos abiertos. {area_km2:.2f} km².",
+                 "tags": [t for t in (R.code, R.sub, "openlaps", args.modo) if t], "length": length or rd["stats"]["km"] * 1000, "run": info_run,
+-                "pitboxes": 8, "preview_png": bio.getvalue(),
++                "pitboxes": (len(args.spawns) if getattr(args, "spawns", None) else 8), "preview_png": bio.getvalue(),
+                 "ai_hw": route_hw, "width": int(round(float(np.median(route_hw)) * 2)) if route_hw is not None else "",
+                 "closed": args.modo == "circuito", "notas": notas_ruta,
+                 "rect": [float(proj.xmin), float(proj.ymin), float(proj.xmax), float(proj.ymax)],
+@@ -807,6 +819,42 @@ def _place_stage(scene, net, route, route_hw, legs, closed, log=print):
+     log(f"  salida, meta y {closed_n} calles laterales cerradas con vallas")
+ 
+ 
++def _place_spawns(scene, net, spawns, log=print):
++    """Preview: one AC_PIT_i / AC_START_i per spawn point (local x, y), on the nearest built road run >= 40 m."""
++    cands = []
++    for e in net.edges:
++        if e.tunnel or e.bridge:
++            continue
++        for a, b in net.ranges(e):
++            if b - a < 40:
++                continue
++            sv = np.arange(a + 6, b - 6, 4.0)
++            if len(sv) == 0:
++                continue
++            cands.append((e, a, b, sv, e.at(sv, 0.0)))
++    for i, (x, y) in enumerate(spawns):
++        best, bd = None, 1e18
++        for e, a, b, sv, P in cands:
++            d = np.hypot(P[:, 0] - x, P[:, 1] - y)
++            j = int(np.argmin(d))
++            if d[j] < bd:
++                best, bd = (e, a, b, float(sv[j])), float(d[j])
++        e, a, b, s0 = best
++        sv = np.arange(max(a + 1, s0 - 20), min(b - 1, s0 + 20), 1.0)
++        poly = e.at(sv, 0.0)
++        k = len(poly) // 2
++        t, n = _frame(poly, k)
++        pos = poly[k].copy()
++        pos[2] += 0.3
++        scene.dummy(f"AC_PIT_{i}", pos, t)
++        scene.dummy(f"AC_START_{i}", pos, t)
++        if i == 0:
++            scene.dummy("AC_HOTLAP_START_0", pos, t)
++            for side, nm in ((1, "AC_TIME_0_L"), (-1, "AC_TIME_0_R")):
++                scene.dummy(nm, poly[k] + np.r_[n * side * (e.hw + 1), 0.5], t)
++        log(f"  salida {i}: a {bd:.0f} m del punto pedido, en {e.tags.get('name', e.cls)}")
++
++
+ def _place_free(scene, net, log=print):
+     """Salidas del modo libre en un buen sitio: un tramo recto y largo de una calle importante, pero cerca del
+     centro de la zona (antes ganaba el tramo más largo de toda el área y la salida podía quedar en un borde, en
+diff --git a/openlaps/regions.py b/openlaps/regions.py
+index 8aba20d..64c3e4d 100644
+--- a/openlaps/regions.py
++++ b/openlaps/regions.py
+@@ -129,9 +129,20 @@ US = Region(
+ EU = Region(code="eu", name="Europa (genérico)", country="", roof="pitched",
+             species=("encino", "pino", "arbusto", "tropical"))
+ 
++# Lebanon (Koura): flat concrete roofs with rooftop water tanks, a share of red tile on low houses (see
++# buildings.py: lb pitched share), olives everywhere, pine and oak on hills, cypress and palms in gardens
++LB = Region(code="lb", name="Lebanon", country="Lebanon", roof="flat", tinaco=True,
++            facade_colors=[(232, 224, 206), (224, 212, 186), (214, 200, 170), (238, 234, 224), (205, 190, 160),
++                           (196, 180, 150), (228, 220, 200), (216, 206, 184), (240, 238, 230), (188, 176, 156)],
++            roof_colors=[(168, 84, 58), (160, 78, 54), (178, 96, 66)],
++            levels_default=(2, 2, 3, 3, 4), asphalt_tone=84.0,
++            species=("olivo", "pino", "encino", "arbusto", "palma"),
++            ortho="lb_xyz", ortho_mpp=0.5,
++            attribution=["Aerial imagery: Esri World Imagery (personal use only, not redistributed)"])
++
+ GENERIC = Region(code="generic", name="Genérico", country="")
+ 
+-REGIONS = {r.code: r for r in (MX, ES, FR, US, EU, GENERIC)}
++REGIONS = {r.code: r for r in (MX, ES, FR, US, EU, LB, GENERIC)}
+ 
+ 
+ # =========================================================================== subregiones
+@@ -297,6 +308,8 @@ def detect(lat, lon):
+         return ES
+     if 41.3 <= lat <= 51.2 and -5.3 <= lon <= 9.7:
+         return FR
++    if 33.0 <= lat <= 34.75 and 35.05 <= lon <= 36.7:
++        return LB
+     if 34.0 <= lat <= 71.5 and -25.0 <= lon <= 45.0:
+         return EU
+     return GENERIC
+diff --git a/openlaps/roads.py b/openlaps/roads.py
+index cc51fa9..213bd4c 100644
+--- a/openlaps/roads.py
++++ b/openlaps/roads.py
+@@ -19,6 +19,7 @@ Pasos del algoritmo (ver README para la explicación larga):
+     terraplén alto, fantasmas (indicadores de alineamiento), puentes y túneles.
+ """
+ import heapq
++import os
+ import math
+ import re
+ from dataclasses import dataclass, field
+@@ -407,11 +408,11 @@ def radio_vertical_min(v_kmh):
+     return float(np.clip(0.18 * v_kmh ** 2, 60.0, 3000.0))
+ 
+ 
+-def _acuerdos_verticales(s, z, v_kmh, desvio=2.0, iters=400):
++def _acuerdos_verticales(s, z, v_kmh, desvio=2.0, iters=400, fijos=1):
+     """Suaviza la rasante solo donde la curvatura vertical pasa del límite de la velocidad de
+     proyecto (baches y quiebres que se notaban al conducir), sin mover los extremos (costura con
+     los cruces) y sin separarse más de `desvio` m de la rasante de partida."""
+-    if len(z) < 5:
++    if len(z) < 5 or len(z) <= 2 * fijos + 1:
+         return z
+     kmax = 1.0 / radio_vertical_min(v_kmh)
+     z0 = np.asarray(z, float)
+@@ -431,7 +432,7 @@ def _acuerdos_verticales(s, z, v_kmh, desvio=2.0, iters=400):
+         lap[1:-1] = 0.5 * (z[:-2] + z[2:]) - z[1:-1]
+         z = np.where(m, z + 0.5 * lap, z)
+         z = np.clip(z, z0 - desvio, z0 + desvio)
+-        z[0], z[-1] = z0[0], z0[-1]
++        z[:fijos], z[-fijos:] = z0[:fijos], z0[-fijos:]     # fijos=2 also keeps the slope at each end
+     return z
+ 
+ 
+@@ -1022,6 +1023,38 @@ class RoadNetwork:
+         # (se suponía la bajada ya hundida en el MDT, y casi nunca lo está): la calle caía 6 m en 30 m justo
+         # en la boca, el coche salía volando a 60 km/h y se estrellaba contra el techo. Ahora la boca ya va
+         # hundida (_bocas_hundidas) y dentro baja como mucho un ~10 %.
++        # Koura: one tangent plane per node. Every road that meets at a node leaves it with the slope of that
++        # plane, so nothing kinks at a junction, whether you drive straight through or turn. Before, each road
++        # kept its own slope right up to the node and the junction patch had to absorb the difference in a few
++        # metres (the owner felt it as sharp bumps and sudden dips; 79 % of the kicks measured sat at junctions).
++        def _sal(e, end):
++            """Outward unit direction and outward slope of the smoothed profile at one end of an edge."""
++            zs = prof[e.id]
++            if len(zs) < 2:
++                return None
++            j = int(min(np.searchsorted(e.s, min(6.0, e.s[-1])), len(zs) - 1)) or 1
++            if end == 0:
++                t = e.P[j, :2] - e.P[0, :2]
++                g = (zs[j] - zs[0]) / max(e.s[j], 1e-3)
++            else:
++                t = e.P[-1 - j, :2] - e.P[-1, :2]
++                g = (zs[-1 - j] - zs[-1]) / max(e.s[-1] - e.s[-1 - j], 1e-3)
++            n = float(np.linalg.norm(t))
++            return (t / n, float(g)) if n > 1e-6 else None
++        accG = {}
++        for e in self.edges:
++            w = 0.05 if (e.bridge or e.tunnel) else 3.0 ** e.prio
++            for end, nid in ((0, e.a), (1, e.b)):
++                r = _sal(e, end)
++                if r is None:
++                    continue
++                A_, b_, sw = accG.setdefault(nid, [np.zeros((2, 2)), np.zeros(2), 0.0])
++                A_ += w * np.outer(r[0], r[0])
++                b_ += w * r[1] * r[0]
++                accG[nid][2] = sw + w
++        plano = {n: np.clip(np.linalg.solve(A_ + 0.02 * sw * np.eye(2), b_), -0.18, 0.18)
++                 for n, (A_, b_, sw) in accG.items() if sw > 0}
++        usar_plano = os.environ.get("KOURA_PLANO", "1") != "0"
+         cobertura, rampa = 7.3, 60.0
+         for e in self.edges:
+             za, zb = self.node_z[e.a], self.node_z[e.b]
+@@ -1046,9 +1079,29 @@ class RoadNetwork:
+                 zs = prof[e.id]
+                 L = e.s[-1]
+                 D = max(min(12.0, L * 0.5), min(60.0, L * 0.5))
+-                wa = 0.5 * (1 + np.cos(np.pi * np.clip(e.s / D, 0, 1)))
+-                wb = 0.5 * (1 + np.cos(np.pi * np.clip((L - e.s) / D, 0, 1)))
+-                e.Z = _acuerdos_verticales(e.s, zs + (za - zs[0]) * wa + (zb - zs[-1]) * wb, e.speed)
++                ra, rb = _sal(e, 0), _sal(e, 1)
++                if usar_plano and ra and rb and e.a in plano and e.b in plano and L > 2.0:
++                    ga = float(plano[e.a] @ ra[0])            # slope leaving a, along +s
++                    gb = -float(plano[e.b] @ rb[0])           # slope arriving at b, along +s
++                    h00 = lambda u: 2 * u ** 3 - 3 * u ** 2 + 1
++                    h10 = lambda u: u ** 3 - 2 * u ** 2 + u
++                    if L < 24.0:
++                        # short link between two junctions: one cubic from plane to plane
++                        u = e.s / L
++                        zc = za * h00(u) + L * ga * h10(u) + zb * h00(1 - u) - L * gb * h10(1 - u)
++                    else:
++                        da, db = ga - ra[1], gb + rb[1]       # slope still to correct at each end
++                        Da = min(L * 0.5, max(30.0, 500.0 * abs(da)))
++                        Db = min(L * 0.5, max(30.0, 500.0 * abs(db)))
++                        ua = np.clip(e.s / Da, 0, 1)
++                        ub = np.clip((L - e.s) / Db, 0, 1)
++                        zc = zs + (za - zs[0]) * h00(ua) + Da * da * h10(ua) \
++                            + (zb - zs[-1]) * h00(ub) - Db * db * h10(ub)
++                    e.Z = _acuerdos_verticales(e.s, zc, max(e.speed, 80.0), fijos=2)
++                else:
++                    wa = 0.5 * (1 + np.cos(np.pi * np.clip(e.s / D, 0, 1)))
++                    wb = 0.5 * (1 + np.cos(np.pi * np.clip((L - e.s) / D, 0, 1)))
++                    e.Z = _acuerdos_verticales(e.s, zs + (za - zs[0]) * wa + (zb - zs[-1]) * wb, e.speed)
+ 
+     def _bocas_hundidas(self, hundir=3.0, pendiente=0.08):
+         """Boca de un túnel (nodo con calles normales y túnel): se hunde hasta `hundir` m, y la calle que llega
+@@ -1511,6 +1564,125 @@ def armonizar_calzadas(scene, celda=0.5, banda=1.6, sigma=1.5, log=print):
+             + (f", {cuenta['parches']:.0f} m² de rendijas tapadas" if cuenta["parches"] else ""))
+ 
+ 
++def suavizar_rodadura(scene, sigma=None, tope=0.35, pasadas=3, log=print):
++    """Koura: irons the drivable road surface. Each road vertex takes the height of the plane that best fits the
++    road around it (gaussian weights, `sigma` m), so a constant grade or a banked curve is left exactly as it is
++    and only waves shorter than a few car lengths go. Pieces that meet at the same place get the same height.
++    Neighbours more than 0.6 m above or below are another road (a terrace, a ramp) and do not count. Bridges and
++    tunnels are left alone. No vertex moves more than `tope` m."""
++    sigma = float(os.environ.get("KOURA_SIGMA", "4.0")) if sigma is None else sigma
++    aparte = getattr(scene, "aparte", set())
++    piezas = [p for k in scene.pieces if k[0] == "calzada" and k[2] for p in scene.pieces[k]
++              if id(p) not in aparte and len(p.faces)]
++    if not piezas:
++        return
++    off = np.cumsum([0] + [len(p.pos) for p in piezas])
++    P = np.concatenate([p.pos for p in piezas]).astype(np.float64)
++    z0 = P[:, 2].copy()
++    z = z0.copy()
++    arbol = cKDTree(P[:, :2])
++    K = 120
++    R = 2.5 * sigma
++    for _ in range(pasadas):
++        nuevo = z.copy()
++        for i0 in range(0, len(P), 200000):
++            i1 = min(i0 + 200000, len(P))
++            d, j = arbol.query(P[i0:i1, :2], k=K, distance_upper_bound=R)
++            ok = np.isfinite(d)
++            j = np.where(ok, j, 0)
++            dz = z[j] - z[i0:i1, None]
++            w = np.exp(-0.5 * (d / sigma) ** 2, where=ok, out=np.zeros_like(d)) * (np.abs(dz) < 0.6)
++            dx = (P[j, 0] - P[i0:i1, None, 0]) * ok
++            dy = (P[j, 1] - P[i0:i1, None, 1]) * ok
++            dz = dz * ok
++            A = np.zeros((i1 - i0, 3, 3))
++            b = np.zeros((i1 - i0, 3))
++            base = (np.ones_like(dx), dx, dy)
++            for r_ in range(3):
++                b[:, r_] = (w * base[r_] * dz).sum(1)
++                for c_ in range(r_, 3):
++                    A[:, r_, c_] = A[:, c_, r_] = (w * base[r_] * base[c_]).sum(1)
++            A[:, 1, 1] += 1e-3 * A[:, 0, 0] + 1e-9
++            A[:, 2, 2] += 1e-3 * A[:, 0, 0] + 1e-9
++            A[:, 0, 0] += 1e-9
++            sol = np.linalg.solve(A, b[:, :, None])[:, 0, 0]
++            bien = (w > 0).sum(1) >= 6
++            nuevo[i0:i1] = np.where(bien, z[i0:i1] + sol, z[i0:i1])
++        z = np.clip(nuevo, z0 - tope, z0 + tope)
++    mov = np.abs(z - z0)
++    for p, o0, o1 in zip(piezas, off[:-1], off[1:]):
++        p.pos[:, 2] = z[o0:o1]
++    log(f"  planchado de la rodadura: {len(P)} vértices, sigma {sigma} m, ajuste medio {mov.mean() * 100:.1f} cm, "
++        f"p99 {np.percentile(mov, 99) * 100:.0f} cm, máx. {mov.max() * 100:.0f} cm")
++
++
++def alisar_picos(scene, pend=0.28, pasadas=40, log=print):
++    """Koura: last pass over the drivable road surface. The owner felt sharp bumps and sudden dips, mostly at
++    junctions: pieces that meet with a step, and a few triangles standing almost vertical (300-400 % slope).
++    1. vertices of different pieces at the same place (5 cm) with 2-100 cm between them are welded to their mean;
++    2. vertices of triangles steeper than `pend` are relaxed towards the mean of their neighbours, repeatedly.
++    Bridges and tunnels (scene.aparte) are left alone."""
++    aparte = getattr(scene, "aparte", set())
++    piezas = [p for k in scene.pieces if k[0] == "calzada" and k[2] for p in scene.pieces[k]
++              if id(p) not in aparte and len(p.faces)]
++    if not piezas:
++        return
++    off = np.cumsum([0] + [len(p.pos) for p in piezas])
++    P = np.concatenate([p.pos for p in piezas]).astype(np.float64)
++    F = np.concatenate([np.asarray(p.faces) + o for p, o in zip(piezas, off[:-1])])
++    # weld by position
++    from scipy.sparse import coo_matrix
++    from scipy.sparse.csgraph import connected_components
++    pares = cKDTree(P[:, :2]).query_pairs(0.06, output_type="ndarray")
++    g = coo_matrix((np.ones(len(pares), np.int8), (pares[:, 0], pares[:, 1])), shape=(len(P), len(P)))
++    _, inv = connected_components(g, directed=False)
++    n = int(inv.max()) + 1
++    cnt = np.bincount(inv, minlength=n)
++    zs = np.bincount(inv, weights=P[:, 2], minlength=n) / np.maximum(cnt, 1)
++    zmin = np.full(n, np.inf); zmax = np.full(n, -np.inf)
++    np.minimum.at(zmin, inv, P[:, 2]); np.maximum.at(zmax, inv, P[:, 2])
++    mismo = (zmax - zmin) <= 1.0            # further apart: two levels (a ramp beside an avenue), not a step
++    Z = np.where(mismo, zs, np.nan)[inv]
++    Z = np.where(np.isfinite(Z), Z, P[:, 2])
++    soldados = int(((zmax - zmin > 0.02) & mismo).sum())
++    Fw = inv[F]                              # faces on welded ids
++    XY = np.zeros((n, 2)); XY[inv] = P[:, :2]
++    Zw = np.zeros(n); Zw[inv] = Z            # welded z (for two-level places: one of them; they are not touched)
++    libre = mismo.copy()
++    e = np.concatenate([Fw[:, [0, 1]], Fw[:, [1, 2]], Fw[:, [2, 0]]])
++    e = e[e[:, 0] != e[:, 1]]
++    tocados = np.zeros(n, bool)
++    for _ in range(pasadas):
++        a, b, c = XY[Fw[:, 0]], XY[Fw[:, 1]], XY[Fw[:, 2]]
++        za, zb, zc = Zw[Fw[:, 0]], Zw[Fw[:, 1]], Zw[Fw[:, 2]]
++        ux, uy, uz = b[:, 0] - a[:, 0], b[:, 1] - a[:, 1], zb - za
++        vx, vy, vz = c[:, 0] - a[:, 0], c[:, 1] - a[:, 1], zc - za
++        nx_, ny_, nz_ = uy * vz - uz * vy, uz * vx - ux * vz, ux * vy - uy * vx
++        with np.errstate(invalid="ignore", divide="ignore"):
++            pen = np.hypot(nx_, ny_) / np.abs(nz_)
++        malo = np.isfinite(pen) & (pen > pend) & (np.abs(nz_) > 1e-4)
++        if _ == 0:
++            n_ini = int(malo.sum())
++        n_fin = int(malo.sum())
++        if not malo.any():
++            break
++        m = np.zeros(n, bool); m[Fw[malo].ravel()] = True
++        m &= libre
++        if not m.any():
++            break
++        s_ = np.bincount(e[:, 0], weights=Zw[e[:, 1]], minlength=n) + np.bincount(e[:, 1], weights=Zw[e[:, 0]], minlength=n)
++        k_ = np.bincount(e[:, 0], minlength=n) + np.bincount(e[:, 1], minlength=n)
++        med = np.where(k_ > 0, s_ / np.maximum(k_, 1), Zw)
++        Zw = np.where(m, 0.25 * Zw + 0.75 * med, Zw)
++        tocados |= m
++    Zf = np.where(libre[inv], Zw[inv], P[:, 2])
++    dmax = float(np.abs(Zf - P[:, 2]).max()) if len(Zf) else 0.0
++    for p, o0, o1 in zip(piezas, off[:-1], off[1:]):
++        p.pos[:, 2] = Zf[o0:o1]
++    log(f"  alisado: triángulos > {pend}: {n_ini} -> {n_fin}; piezas {len(piezas)}, claves {sorted(set(k[1] for k in scene.pieces if k[0] == 'calzada'))[:12]}")
++    log(f"  alisado de picos: {soldados} puntos soldados, {int(tocados.sum())} relajados (ajuste máx. {dmax * 100:.0f} cm)")
++
++
+ def _superficie_comun(scene, piezas, extra, en_estructura, celda, banda, sigma, cuenta):
+     """Un nivel del repaso (ver armonizar_calzadas): ajusta `piezas` (y `extra`, que solo opina y se mueve donde
+     va a ras de las demás) a una superficie común. Devuelve los campos para lo que va pegado a la calzada."""
+@@ -1798,6 +1970,87 @@ def _agrupar_cruces(net, solape_min=0.5):
+     return out, cascos
+ 
+ 
++KART = None      # set by koura/build.py: {"poly": shapely polygon in local metres, "name": str}
++
++
++def _pista_kart(net, scene, road_polys, carve_pts, surf_pts, log=print):
++    """Koura: Karting Mania as one purpose-built surface instead of ordinary streets. The asphalt outline comes
++    traced from the aerial image (koura/kart_pts.py). It lies on a single plane fitted to the ground under it,
++    so it is perfectly smooth, and the terrain is carved to that plane."""
++    if not KART:
++        return
++    poly = KART["poly"]
++    partes = [g for g in iter_polys(poly) if g.area > 1.0]
++    vs, fs, off = [], [], 0
++    for g in partes:
++        v_, f_ = triangulate_polygon(g, 2.0)
++        v_, f_ = _refinar_interior(v_, f_, 3.0)
++        vs.append(v_); fs.append(f_ + off); off += len(v_)
++    verts, faces = np.vstack(vs), np.vstack(fs)
++    bx0, by0, bx1, by1 = poly.bounds
++    gx, gy = np.meshgrid(np.arange(bx0, bx1, 1.0), np.arange(by0, by1, 1.0))
++    gx, gy = gx.ravel(), gy.ravel()
++    inside = shapely.contains_xy(poly, gx, gy)
++    gp = np.column_stack([gx[inside], gy[inside]])
++    cx, cy = float(gp[:, 0].mean()), float(gp[:, 1].mean())
++    A = np.column_stack([np.ones(len(gp)), gp[:, 0] - cx, gp[:, 1] - cy])
++    coef = np.linalg.lstsq(A, net.dem_z(gp[:, 0], gp[:, 1]), rcond=None)[0]
++    pend = float(np.hypot(coef[1], coef[2]))
++    tope = float(KART.get("max_slope", 0.025))        # a kart track is close to level; the 30 m ground model
++    if pend > tope:                                    # only shows the hillside around it
++        coef[1:] *= tope / pend
++    plano = lambda xy: coef[0] + coef[1] * (xy[:, 0] - cx) + coef[2] * (xy[:, 1] - cy)
++    pos = np.column_stack([verts, plano(verts)])
++    _add_marcado(scene, "relleno", "calzada", "asfalto_cruce", pos, verts / 14.0, faces, "ROAD")
++    best = min((e for e in net.edges if e.P is not None),
++               key=lambda e: float(np.min(np.hypot(e.P[:, 0] - cx, e.P[:, 1] - cy))))
++    road_polys.append((poly, best))
++    carve_pts.append(np.column_stack([pos, np.full(len(pos), 1.2)]))
++    carve_pts.append(np.column_stack([gp, plano(gp), np.full(len(gp), 1.0)]))
++    surf_pts.append(pos)
++    log(f"  {KART.get('name', 'kart')}: {poly.area:.0f} m² de asfalto en un plano, pendiente "
++        f"{100 * float(np.hypot(coef[1], coef[2])):.1f} %, cota {coef[0]:.1f} m")
++
++
++def _refinar_interior(verts, faces, lmax=2.0, rondas=14):
++    """Koura: junction patches came out of the triangulator with vertices only on the outline, so a wide junction
++    was a handful of huge flat triangles: the through road crossed it on facets with a kink at each seam (the
++    owner felt bumps and dips at junctions). Interior edges longer than `lmax` are split at their midpoint until
++    the inside is a fine mesh. Outline edges are never split, so the seam with each road stays exact."""
++    V = [tuple(v) for v in np.asarray(verts, float)]
++    F = [tuple(int(i) for i in f) for f in np.asarray(faces)]
++    for _ in range(rondas):
++        usos = {}
++        for fi, f in enumerate(F):
++            for k in range(3):
++                a_, b_ = f[k], f[(k + 1) % 3]
++                usos.setdefault((min(a_, b_), max(a_, b_)), []).append(fi)
++        cand = []
++        for (a_, b_), fl in usos.items():
++            if len(fl) == 2:
++                d = math.hypot(V[a_][0] - V[b_][0], V[a_][1] - V[b_][1])
++                if d > lmax:
++                    cand.append((d, a_, b_, fl))
++        if not cand:
++            break
++        cand.sort(reverse=True)
++        ocupada, nuevas, borrar = set(), [], set()
++        for d, a_, b_, fl in cand:
++            if fl[0] in ocupada or fl[1] in ocupada:
++                continue
++            ocupada.update(fl)
++            m = len(V)
++            V.append((0.5 * (V[a_][0] + V[b_][0]), 0.5 * (V[a_][1] + V[b_][1])))
++            for fi in fl:
++                f = F[fi]
++                k = next(i for i in range(3) if {f[i], f[(i + 1) % 3]} == {a_, b_})
++                p, q, r = f[k], f[(k + 1) % 3], f[(k + 2) % 3]
++                nuevas += [(p, m, r), (m, q, r)]
++                borrar.add(fi)
++        F = [f for i, f in enumerate(F) if i not in borrar] + nuevas
++    return np.array(V, float), np.array(F, np.int64).reshape(-1, 3)
++
++
+ def _altura_cruce(inc, centros):
+     """Función (xy Nx2) -> z de la superficie de un cruce.
+ 
+@@ -2079,6 +2332,8 @@ def build_roads(net: RoadNetwork, scene, buildings_poly=None, water_poly=None, u
+             verts, faces = np.vstack(vs), np.vstack(fs)
+         if len(faces) == 0:
+             continue
++        if os.environ.get("KOURA_REFINAR", "1") != "0":
++            verts, faces = _refinar_interior(verts, faces)
+         # altura: mezcla de los planos de cada calle que llega (ver _altura_cruce)
+         zf = _altura_cruce(inc, centros)
+         z = zf(verts)
+@@ -2131,12 +2386,22 @@ def build_roads(net: RoadNetwork, scene, buildings_poly=None, water_poly=None, u
+         # solo el contorno del cruce (los vértices de earcut están todos en el contorno)
+         surf_pts.append(pos)
+ 
++    _pista_kart(net, scene, road_polys, carve_pts, surf_pts, log)
+     if net.islands:
+         _island_meshes(net, scene, carve_pts, ortho, proj)
+     road_union = unary_union([p for p, _ in road_polys]) if road_polys else None
+     _add_skirts(scene, skirts, road_union)
+     # ---- repaso: una sola superficie continua (lo que se construye después la sigue: seguir_realce)
+-    armonizar_calzadas(scene, log=log)
++    if os.environ.get("KOURA_DUMP"):
++        import pickle
++        pickle.dump({"edges": [(e.id, e.a, e.b, e.cls, e.P, e.Z, e.s, e.speed, bool(e.bridge or e.tunnel)) for e in net.edges
++                               if e.P is not None and e.Z is not None],
++                     "node_xy": dict(net.node_xy), "node_z": dict(net.node_z)}, open(os.environ["KOURA_DUMP"], "wb"))
++    if os.environ.get("KOURA_ARMONIZAR", "1") != "0":
++        armonizar_calzadas(scene, celda=float(os.environ.get("KOURA_CELDA", "0.5")), log=log)
++    # alisar_picos(scene, log=log)   # disabled: the steep triangles are thin slivers, relaxing them moved the road by metres
++    if os.environ.get("KOURA_SUAVIZAR", "1") != "0":
++        suavizar_rodadura(scene, log=log)
+ 
+     # ---- rayas, pasos peatonales y topes
+     _markings(net, scene, stats)
+diff --git a/openlaps/sources/rasters.py b/openlaps/sources/rasters.py
+index e65f7e9..5ab229c 100644
+--- a/openlaps/sources/rasters.py
++++ b/openlaps/sources/rasters.py
+@@ -6,6 +6,7 @@
+   TERRENO, mejor para México; se le pasa al programa como archivo local (--dem archivo.tif).
+ - ESA WorldCover 10 m 2021 (© ESA WorldCover project, CC BY 4.0): tipo de cobertura de suelo.
+ """
++import time
+ import functools
+ import json
+ import math
+@@ -402,11 +403,119 @@ ORTHO_ARCGIS = {
+ }
+ 
+ 
++XYZ_SOURCES = {
++    # Esri World Imagery: personal use only in this project (never redistributed)
++    "lb_xyz": ("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", 18),
++}
++
++
++class XYZRaster:
++    """Aerial imagery from XYZ tiles, decoded on demand (one array for a 12 km rectangle would not fit in memory).
++    Same `sample` interface as Raster. Tiles are cached on disk under CACHE_DIR/xyz/<source>/z/x/y.jpg."""
++
++    def __init__(self, source, log=print, cache_tiles=400):
++        from collections import OrderedDict
++        self.url, self.z = XYZ_SOURCES[source]
++        self.source = source
++        self.log = log
++        self.n = 2 ** self.z
++        self.ok = self.failed = 0
++        self._mem = OrderedDict()
++        self._max = cache_tiles
++        self._tr = {}
++
++    def tile_path(self, x, y):
++        from .cache import CACHE_DIR
++        d = os.path.join(CACHE_DIR, "xyz", self.source, str(self.z), str(x))
++        os.makedirs(d, exist_ok=True)
++        return os.path.join(d, f"{y}.jpg")
++
++    def fetch_tile(self, x, y):
++        """Downloads one tile to disk if missing. Returns the path or None."""
++        import urllib.request
++        p = self.tile_path(x, y)
++        if os.path.exists(p) and os.path.getsize(p) > 0:
++            return p
++        for attempt in range(3):
++            try:
++                req = urllib.request.Request(self.url.format(z=self.z, x=x, y=y), headers={"User-Agent": "Mozilla/5.0"})
++                with urllib.request.urlopen(req, timeout=40) as r:
++                    b = r.read()
++                if len(b) < 200:
++                    raise ValueError("empty tile")
++                with open(p + ".part", "wb") as f:
++                    f.write(b)
++                os.replace(p + ".part", p)
++                return p
++            except Exception:  # noqa: BLE001
++                time.sleep(1.5 * (attempt + 1))
++        return None
++
++    def _tile(self, x, y):
++        from PIL import Image
++        k = (x, y)
++        if k in self._mem:
++            self._mem.move_to_end(k)
++            return self._mem[k]
++        p = self.fetch_tile(x, y)
++        a = None
++        if p:
++            try:
++                a = np.asarray(Image.open(p).convert("RGB"))
++                self.ok += 1
++            except Exception:  # noqa: BLE001
++                a = None
++        if a is None:
++            self.failed += 1
++            a = np.zeros((256, 256, 3), np.uint8)
++        self._mem[k] = a
++        if len(self._mem) > self._max:
++            self._mem.popitem(last=False)
++        return a
++
++    def tiles_for_lonlat(self, lon, lat):
++        """Global pixel coordinates (float) at this zoom for lon/lat arrays."""
++        lat = np.clip(np.asarray(lat, float), -85.0, 85.0)
++        px = (np.asarray(lon, float) + 180.0) / 360.0 * self.n * 256.0
++        py = (1.0 - np.arcsinh(np.tan(np.radians(lat))) / math.pi) / 2.0 * self.n * 256.0
++        return px, py
++
++    def sample(self, proj, x, y, order=1, mode="nearest"):
++        x = np.asarray(x, float)
++        y = np.asarray(y, float)
++        lon, lat = _transformar(_transformer(proj.epsg, "EPSG:4326"), x.ravel() + proj.ox, y.ravel() + proj.oy)
++        px, py = self.tiles_for_lonlat(lon, lat)
++        if not len(px):
++            return np.zeros(x.shape + (3,), np.float32)
++        tx0, tx1 = int(px.min() // 256), int(px.max() // 256)
++        ty0, ty1 = int(py.min() // 256), int(py.max() // 256)
++        if (tx1 - tx0 + 1) * (ty1 - ty0 + 1) > 900:      # absurd request: do not mosaic half the planet
++            return np.zeros(x.shape + (3,), np.float32)
++        mos = np.zeros(((ty1 - ty0 + 1) * 256, (tx1 - tx0 + 1) * 256, 3), np.uint8)
++        for ty in range(ty0, ty1 + 1):
++            for tx in range(tx0, tx1 + 1):
++                mos[(ty - ty0) * 256:(ty - ty0 + 1) * 256, (tx - tx0) * 256:(tx - tx0 + 1) * 256] = self._tile(tx, ty)
++        coords = np.vstack([py - ty0 * 256 - 0.5, px - tx0 * 256 - 0.5])
++        return np.stack([map_coordinates(mos[..., b], coords, order=min(order, 1), mode="nearest", output=np.float32).reshape(x.shape)
++                         for b in range(3)], -1)
++
++    def resumen(self):
++        self.log(f"  ortofoto {self.source}: {self.ok} ok, {self.failed} failed")
++
++
+ def ortho(bbox, source, mpp=0.25, log=print):
+     """Ortofoto RGB del área pedida a `mpp` metros por pixel (aprox.), por teselas WMS en EPSG:3857.
+ 
+     Devuelve un Raster (3 bandas uint8) o None si el servicio no responde.
+     """
++    if source in XYZ_SOURCES:
++        r = XYZRaster(source, log=log)
++        px, py = r.tiles_for_lonlat([(bbox.west + bbox.east) / 2], [(bbox.south + bbox.north) / 2])
++        if r.fetch_tile(int(px[0] // 256), int(py[0] // 256)) is None:
++            log(f"  aviso: ortofoto {source}: the probe tile failed, no aerial imagery")
++            return None
++        log(f"  ortofoto {source}: zoom {r.z}, tiles read on demand")
++        return r
+     from PIL import Image
+     import rasterio.transform
+     from .cache import fetch
+diff --git a/openlaps/vegetation.py b/openlaps/vegetation.py
+index 665c867..43810f0 100644
+--- a/openlaps/vegetation.py
++++ b/openlaps/vegetation.py
+@@ -22,15 +22,34 @@ SPECIES = {  # altura media (m), ancho relativo
+ }
+ 
+ 
++from .regions import active  # noqa: E402
++
++
+ def _choose(cls, elev, lat, r):
+     from .regions import map_species, active
+-    k = _choose_mx(cls, elev, lat, r) if active().code == "mx" else _choose_eu(cls, elev, lat, r)
++    k = _choose_mx(cls, elev, lat, r) if active().code == "mx" else (_choose_lb(cls, elev, lat, r) if active().code == "lb" else _choose_eu(cls, elev, lat, r))
+     # fuera de México las palmas solo en el sur (Andalucía, Levante, Canarias)
+     if k == "palma" and active().code != "mx" and lat > 38.6:
+         k = "encino"
+     return map_species(k)
+ 
+ 
++def _choose_lb(cls, elev, lat, r):
++    """Koura, North Lebanon: the plain is one large olive grove (WorldCover marks groves as trees or crops);
++    pine and oak take over on the hills; gardens in villages have citrus, fig, cypress and a few palms."""
++    if cls in (C.WC_TREE, C.WC_MANGROVE):
++        if elev > 650:
++            return "pino" if r < 0.6 else "encino"
++        return "olivo" if r < 0.78 else ("pino" if r < 0.9 else "encino")
++    if cls == C.WC_SHRUB:
++        return "arbusto" if r < 0.7 else ("olivo" if r < 0.9 else "encino")
++    if cls in (C.WC_GRASS, C.WC_CROP):
++        return "olivo" if r < 0.85 else "arbusto"
++    if cls == C.WC_BUILT:
++        return "olivo" if r < 0.35 else ("encino" if r < 0.7 else ("pino" if r < 0.9 else "palma"))
++    return "arbusto"
++
++
+ def _choose_eu(cls, elev, lat, r):
+     """Europa mediterránea / atlántica: pino y encina (o roble) en el monte, plátanos de sombra
+     y otros caducifolios en la ciudad, matorral bajo; palmas solo en el sur (ver _choose)."""
+@@ -92,8 +111,16 @@ def trees_from_canopy(chm, proj, step=1.5):
+     # 2.5 m, para no perder olivos y árboles sueltos que el suavizado del modelo rebaja
+     peaks = (Hs == maximum_filter(Hs, size=3)) & (Hs > 2.5)
+     peaks &= (Hs > 3.5) | (maximum_filter(Hs, size=7) == Hs)
++    from .regions import active as _act
++    lb = _act().code == "lb"
++    if lb:
++        # Koura: olive crowns are 2-4 m and the 1 m canopy model flattens them to 1.3-3 m. Every local maximum
++        # above 1.3 m is a tree, so the groves come out as rows of olives instead of a few scattered bushes
++        peaks = (Hs == maximum_filter(Hs, size=3)) & (Hs > 1.3)
+     rng = np.random.default_rng(11)
+     shrub = (Hs > 1.0) & (Hs <= 3.0) & (rng.random(Hs.shape) < 0.035)
++    if lb:
++        shrub = (Hs > 0.6) & (Hs <= 1.3) & (rng.random(Hs.shape) < 0.02)
+     # relleno del dosel cerrado: el modelo de 1 m suaviza las copas juntas y quedan pocos
+     # máximos; se añaden plantas con una densidad acorde al tamaño de copa (~0.3 H + 2 m)
+     crown = 0.3 * Hs + 2.0
+@@ -178,7 +205,10 @@ def _build_from_canopy(scene, terrain, landcover, proj, exclude, osm_trees, dens
+     groups, counts = {}, {}
+     for x, y, z, h, c in zip(X, Y, Z, Hc, cls):
+         r = rng.random()
+-        if h <= 3.0:
++        if active().code == "lb" and 1.3 < h <= 3.5:
++            kind = "olivo" if r < 0.9 else "arbusto"
++            h = max(h * 1.35, 3.0) if kind == "olivo" else h
++        elif h <= 3.0:
+             open_land = c in (C.WC_SHRUB, C.WC_GRASS, C.WC_BARE, C.WC_CROP)
+             from .regions import map_species
+             kind = map_species("maguey" if open_land and (proj.lat0 > 22 or z > 1700) and r < 0.4 else "arbusto")

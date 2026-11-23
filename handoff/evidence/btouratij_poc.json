@@ -1,0 +1,45 @@
+{
+  "area_km2": 0.9971182609560352,
+  "stats": {
+    "mallas": 525,
+    "vertices": 561755,
+    "triangulos": 831849,
+    "materiales": 189,
+    "texturas": 196
+  },
+  "carreteras": {
+    "km": 8.24573644354199,
+    "topes": 0,
+    "pasos": 0,
+    "defensa_m": 8.303979081334914,
+    "cruces": 40
+  },
+  "cobertura": {
+    "clases_pct": {
+      "agua": 0.49,
+      "bosque": 30.23,
+      "matorral": 3.49,
+      "pradera": 13.11,
+      "cultivo": 0.03,
+      "roca / suelo desnudo": 0.81,
+      "urbano": 51.84
+    },
+    "fuentes_pct": {
+      "OSM": 45.3,
+      "WorldCover": 54.7
+    },
+    "agua_m2": {
+      "total": 2365,
+      "osm": 2365,
+      "mar": 0,
+      "solo_satelite": 0,
+      "osm_no_visible": 0
+    }
+  },
+  "segundos": 109.1,
+  "centro": [
+    34.3616,
+    35.839
+  ],
+  "modo": "libre"
+}

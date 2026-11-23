@@ -1,0 +1,129 @@
+diff --git a/openlaps/export_ac.py b/openlaps/export_ac.py
+index 5e3853d..d183ceb 100644
+--- a/openlaps/export_ac.py
++++ b/openlaps/export_ac.py
+@@ -370,7 +370,7 @@ def write_track(scene, out_dir, track_id, info, map_lines, route=None, log=print
+         os.remove(ruta_trafico)
+     w(os.path.join("data", "lighting.ini"), "[LIGHTING]\nSUN_PITCH_ANGLE=45\nSUN_HEADING_ANGLE=-40\n")
+     ext_txt = ext_config(scene, info["lat"], info["lon"])
+-    if not info.get("es_semilla_vivo"):
++    if False:  # preview: no live-mode script
+         from . import vivo as V
+         V.escribir_lua(root, "", "", float(info["lat"]), float(info["lon"]),
+                        modo_espera=True, rect_horneado=info.get("rect"), pista=track_id)
+diff --git a/openlaps/pipeline.py b/openlaps/pipeline.py
+index bd1fc54..6fc1093 100644
+--- a/openlaps/pipeline.py
++++ b/openlaps/pipeline.py
+@@ -270,6 +270,16 @@ def run(args, log=print, proj=None, scene=None, osm_data=None, pedazo=None, cat_
+         cob.quieta = [g for g in cob.quieta if g.intersects(zona)]
+         cob.corriente = [g for g in cob.corriente if g.intersects(zona)]
+         log(f"  corredor: {zona.area / 1e6:.2f} km² de {area_km2:.1f} ({len(blds)} de {antes} edificios)")
++    zf = getattr(args, "zona_fn", None)
++    if zf is not None and zona is None:
++        zona = zf(proj).intersection(sbox(*rect))
++        net.acotar(zona)
++        osm = solo_en_zona(osm, proj, zona.buffer(30.0))
++        antes = len(blds)
++        blds = [b for b in blds if b["poly"].intersects(zona)]
++        cob.quieta = [g for g in cob.quieta if g.intersects(zona)]
++        cob.corriente = [g for g in cob.corriente if g.intersects(zona)]
++        log(f"  zona externa: {zona.area / 1e6:.2f} km² de {area_km2:.1f} ({len(blds)} de {antes} edificios)")
+     blds_poly_pre = unary_union([b["poly"] for b in blds]) if blds else None
+     has_gr = any(b["tags"].get("barrier") == "guard_rail" for b in osm.get("barriers", []))
+     rails = []
+@@ -315,7 +325,10 @@ def run(args, log=print, proj=None, scene=None, osm_data=None, pedazo=None, cat_
+         X.tv_cameras(scene, route)
+         info_run = "clockwise" if args.modo == "circuito" else "A-B"
+     elif pedazo is None:
+-        _place_free(scene, net, log=log)
++        if getattr(args, "spawns", None):
++            _place_spawns(scene, net, args.spawns, log=log)
++        else:
++            _place_free(scene, net, log=log)
+ 
+     # ------------------------------------------------------------ terreno
+     log("5/7 Terreno: tallado y textura…")
+@@ -438,8 +451,7 @@ def run(args, log=print, proj=None, scene=None, osm_data=None, pedazo=None, cat_
+     log(f"  {glb} ({size / 1e6:.1f} MB)")
+     if args.ac:
+         # el muro invisible de borde queda en el .glb, pero en AC estorbaría si el usuario activa el modo en vivo
+-        for k in [k for k in scene.pieces if k[0] == "col"]:
+-            del scene.pieces[k]
++        pass  # preview: keep the invisible edge wall and colliders
+         thumb = prev.copy()
+         thumb.thumbnail((512, 512))
+         bio = io.BytesIO()
+@@ -452,7 +464,7 @@ def run(args, log=print, proj=None, scene=None, osm_data=None, pedazo=None, cat_
+                     s2_years=f" ({', '.join(sorted(rasters.S2_YEARS))})" if rasters.S2_YEARS else "") + "".join("- " + a + chr(10) for a in R.attribution),
+                 "description": f"Generada con openlaps a partir de datos abiertos. {area_km2:.2f} km².",
+                 "tags": [t for t in (R.code, R.sub, "openlaps", args.modo) if t], "length": length or rd["stats"]["km"] * 1000, "run": info_run,
+-                "pitboxes": 8, "preview_png": bio.getvalue(),
++                "pitboxes": (len(args.spawns) if getattr(args, "spawns", None) else 8), "preview_png": bio.getvalue(),
+                 "ai_hw": route_hw, "width": int(round(float(np.median(route_hw)) * 2)) if route_hw is not None else "",
+                 "closed": args.modo == "circuito", "notas": notas_ruta,
+                 "rect": [float(proj.xmin), float(proj.ymin), float(proj.xmax), float(proj.ymax)],
+@@ -807,6 +819,42 @@ def _place_stage(scene, net, route, route_hw, legs, closed, log=print):
+     log(f"  salida, meta y {closed_n} calles laterales cerradas con vallas")
+ 
+ 
++def _place_spawns(scene, net, spawns, log=print):
++    """Preview: one AC_PIT_i / AC_START_i per spawn point (local x, y), on the nearest built road run >= 40 m."""
++    cands = []
++    for e in net.edges:
++        if e.tunnel or e.bridge:
++            continue
++        for a, b in net.ranges(e):
++            if b - a < 40:
++                continue
++            sv = np.arange(a + 6, b - 6, 4.0)
++            if len(sv) == 0:
++                continue
++            cands.append((e, a, b, sv, e.at(sv, 0.0)))
++    for i, (x, y) in enumerate(spawns):
++        best, bd = None, 1e18
++        for e, a, b, sv, P in cands:
++            d = np.hypot(P[:, 0] - x, P[:, 1] - y)
++            j = int(np.argmin(d))
++            if d[j] < bd:
++                best, bd = (e, a, b, float(sv[j])), float(d[j])
++        e, a, b, s0 = best
++        sv = np.arange(max(a + 1, s0 - 20), min(b - 1, s0 + 20), 1.0)
++        poly = e.at(sv, 0.0)
++        k = len(poly) // 2
++        t, n = _frame(poly, k)
++        pos = poly[k].copy()
++        pos[2] += 0.3
++        scene.dummy(f"AC_PIT_{i}", pos, t)
++        scene.dummy(f"AC_START_{i}", pos, t)
++        if i == 0:
++            scene.dummy("AC_HOTLAP_START_0", pos, t)
++            for side, nm in ((1, "AC_TIME_0_L"), (-1, "AC_TIME_0_R")):
++                scene.dummy(nm, poly[k] + np.r_[n * side * (e.hw + 1), 0.5], t)
++        log(f"  salida {i}: a {bd:.0f} m del punto pedido, en {e.tags.get('name', e.cls)}")
++
++
+ def _place_free(scene, net, log=print):
+     """Salidas del modo libre en un buen sitio: un tramo recto y largo de una calle importante, pero cerca del
+     centro de la zona (antes ganaba el tramo más largo de toda el área y la salida podía quedar en un borde, en
+diff --git a/openlaps/roads.py b/openlaps/roads.py
+index cc51fa9..0e27603 100644
+--- a/openlaps/roads.py
++++ b/openlaps/roads.py
+@@ -19,6 +19,7 @@ Pasos del algoritmo (ver README para la explicación larga):
+     terraplén alto, fantasmas (indicadores de alineamiento), puentes y túneles.
+ """
+ import heapq
++import os
+ import math
+ import re
+ from dataclasses import dataclass, field
+@@ -2136,7 +2137,7 @@ def build_roads(net: RoadNetwork, scene, buildings_poly=None, water_poly=None, u
+     road_union = unary_union([p for p, _ in road_polys]) if road_polys else None
+     _add_skirts(scene, skirts, road_union)
+     # ---- repaso: una sola superficie continua (lo que se construye después la sigue: seguir_realce)
+-    armonizar_calzadas(scene, log=log)
++    armonizar_calzadas(scene, celda=float(os.environ.get("KOURA_CELDA", "0.5")), log=log)
+ 
+     # ---- rayas, pasos peatonales y topes
+     _markings(net, scene, stats)
