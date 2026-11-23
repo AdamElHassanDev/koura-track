@@ -136,6 +136,75 @@ def inject_kart(data):
     return data
 
 
+def connect_crossings(data):
+    """Roads that cross, or end within 4 m of another road, without sharing a point in the map data. The generator
+    then builds two unrelated roads on top of each other at different heights and merges them with a pit or a
+    step of up to 2 m (the owner's "big bumps or recessions"), and the roads are not connected for driving.
+    A shared point is added so the place becomes a normal junction. Bridges, tunnels and layered ways are left."""
+    import shapely
+    from shapely.geometry import LineString as LS, Point as PT
+    DRIV = {"motorway", "trunk", "primary", "secondary", "tertiary", "unclassified", "residential", "living_street", "service", "track", "road",
+            "motorway_link", "trunk_link", "primary_link", "secondary_link", "tertiary_link"}
+    ways = [el for el in data["elements"] if el.get("type") == "way" and el.get("tags", {}).get("highway") in DRIV and "geometry" in el
+            and len(el["geometry"]) >= 2 and not any(k in el["tags"] for k in ("bridge", "tunnel", "layer", "covered"))]
+    lines, xy = [], []
+    for el in ways:
+        x, y = proj.to_local(np.array([g["lon"] for g in el["geometry"]]), np.array([g["lat"] for g in el["geometry"]]))
+        xy.append(np.c_[x, y]); lines.append(LS(np.c_[x, y]))
+    tree = shapely.STRtree(lines)
+    uso = {}
+    for el in ways:
+        for n in el["nodes"]:
+            uso[n] = uso.get(n, 0) + 1
+    nid = [-900000]; ins = {}          # way index -> [(dist along, x, y, node id)]
+    def nuevo(i, j, pt):
+        nid[0] -= 1
+        for k in (i, j):
+            ins.setdefault(k, []).append((float(lines[k].project(pt)), pt.x, pt.y, nid[0]))
+        return nid[0]
+    def cerca_de_nodo_comun(i, j, pt, r=3.0):
+        com = set(ways[i]["nodes"]) & set(ways[j]["nodes"])
+        if not com:
+            return False
+        ni = np.array([k for k, n in enumerate(ways[i]["nodes"]) if n in com])
+        return bool((np.hypot(xy[i][ni, 0] - pt.x, xy[i][ni, 1] - pt.y) < r).any())
+    nx_ = ne_ = 0
+    a, b = tree.query(lines, predicate="crosses")
+    for i, j in zip(a.tolist(), b.tolist()):
+        if i >= j:
+            continue
+        g = lines[i].intersection(lines[j])
+        for pt in ([g] if g.geom_type == "Point" else [q for q in getattr(g, "geoms", []) if q.geom_type == "Point"]):
+            if not cerca_de_nodo_comun(i, j, pt):
+                nuevo(i, j, pt); nx_ += 1
+    # loose ends close to another road
+    for i, el in enumerate(ways):
+        for end in (0, -1):
+            n = el["nodes"][end]
+            if uso.get(n, 0) != 1:
+                continue
+            pt = PT(xy[i][end])
+            for j in tree.query(pt.buffer(4.0)).tolist():
+                if j == i or lines[j].distance(pt) > 4.0 or cerca_de_nodo_comun(i, j, pt, 6.0):
+                    continue
+                q = lines[j].interpolate(lines[j].project(pt))
+                nid[0] -= 1
+                ins.setdefault(j, []).append((float(lines[j].project(q)), q.x, q.y, nid[0]))
+                lon, lat = proj.to_lonlat(q.x, q.y)
+                el["nodes"][end] = nid[0]; el["geometry"][end] = {"lat": float(lat), "lon": float(lon)}
+                ne_ += 1
+                break
+    for k, lst in ins.items():
+        el = ways[k]; P = xy[k]
+        s_ = np.concatenate([[0], np.cumsum(np.linalg.norm(np.diff(P, axis=0), axis=1))])
+        for d, x, y, n in sorted(lst, reverse=True):
+            seg = int(np.clip(np.searchsorted(s_, d, side="right"), 1, len(s_) - 1))
+            lon, lat = proj.to_lonlat(x, y)
+            el["nodes"].insert(seg, n); el["geometry"].insert(seg, {"lat": float(lat), "lon": float(lon)})
+    log(f"  map data repaired: {nx_} unconnected crossings joined, {ne_} loose road ends joined to the road beside them")
+    return data
+
+
 def kart_polygon():
     """Asphalt outline of Karting Mania in local metres: the traced racing line widened to the track width, plus
     the paddock strip. Built as one smooth surface by openlaps.roads._pista_kart."""
@@ -187,7 +256,7 @@ args.spawns = [tuple(float(v) for v in proj.to_local(s["lon"], s["lat"])) for s 
 for i, s in enumerate(sp): log(f"slot {i}: {s['name']}")
 os.environ.setdefault("KOURA_CELDA", "0.5" if zona.area < 12e6 and (rect[2] - rect[0]) * (rect[3] - rect[1]) < 30e6 else "1.5")
 if "--no-imagery" not in sys.argv: prefetch_imagery()
-raw = inject_kart(fetch_osm())
+raw = connect_crossings(inject_kart(fetch_osm()))
 from openlaps import config as _C
 _C.CURB_HEIGHT = 0.05      # owner: kerbs were too high and broke the car; low enough to ride over
 _C.SIDEWALK_CLASSES = set()  # owner: the grey paved strips at junctions looked like parking strips and the kerbs broke the car.

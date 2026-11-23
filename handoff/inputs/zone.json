@@ -210,6 +210,50 @@
      0
     ]
    }
+  },
+  "A": {
+   "title": "Amioun to Kousba highway strip (quick test build for road smoothness)",
+   "terrain_res_m": 3.0,
+   "parts": [
+    {
+     "type": "box",
+     "south": 34.2949,
+     "west": 35.83,
+     "north": 34.3012,
+     "east": 35.8545
+    }
+   ],
+   "expected": {
+    "zone_km2": 1.6,
+    "rect_local_m": [
+     0,
+     -4096,
+     2560,
+     -3072
+    ]
+   }
+  },
+  "P": {
+   "title": "Kousba east pit (quick test build of one bad spot)",
+   "terrain_res_m": 3.0,
+   "parts": [
+    {
+     "type": "box",
+     "south": 34.3008,
+     "west": 35.8555,
+     "north": 34.305,
+     "east": 35.861
+    }
+   ],
+   "expected": {
+    "zone_km2": 0.24,
+    "rect_local_m": [
+     2048,
+     -3584,
+     3072,
+     -2560
+    ]
+   }
   }
  },
  "routes": {

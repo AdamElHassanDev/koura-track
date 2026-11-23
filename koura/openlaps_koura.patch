@@ -142,7 +142,7 @@ index 8aba20d..64c3e4d 100644
          return EU
      return GENERIC
 diff --git a/openlaps/roads.py b/openlaps/roads.py
-index cc51fa9..9cfa572 100644
+index cc51fa9..3d118a0 100644
 --- a/openlaps/roads.py
 +++ b/openlaps/roads.py
 @@ -19,6 +19,7 @@ Pasos del algoritmo (ver README para la explicación larga):
@@ -176,7 +176,104 @@ index cc51fa9..9cfa572 100644
      return z
  
  
-@@ -979,6 +980,7 @@ class RoadNetwork:
+@@ -492,7 +493,10 @@ class RoadNetwork:
+         self._build_graph(osm)
+         self._geometry()
+         self._elevation()
+-        self._merge_forks()
++        self._alisar_red()
++        if self._merge_forks():
++            # Koura: the fork merge ends in a 12 m ramp (pits of 2-3 m at hairpins); smooth the network again
++            self._alisar_red()
+         self._superelevation()
+         self._trims()
+         self._runs()
+@@ -922,6 +926,84 @@ class RoadNetwork:
+         self.edges = [e for e in self.edges if e.P is not None and len(e.P) >= 2 and e.s[-1] > 0.5]
+ 
+     # ---------------------------------------------------------------- 3. alzado
++    def _alisar_red(self):
++        """Koura: one smoothing spline over the whole road network. Every street (a chain of links that runs
++        straight through its junctions) gets a height profile with as little change of grade as possible while
++        staying near the designed heights; all streets that meet at a junction share its height. Solved as one
++        sparse least-squares problem, so a through road stays smooth across every side street instead of each
++        junction pulling it up or down. `KOURA_SPLINE_L` (m) sets the length scale: waves much shorter than
++        about six times that are removed, hills longer than that stay. Bridges and tunnels are not moved."""
++        Lc = float(os.environ.get("KOURA_SPLINE_L", "45"))
++        if Lc <= 0:
++            return
++        from scipy.sparse import coo_matrix
++        from scipy.sparse.linalg import spsolve
++        nvar = {}
++        idx = {}
++        n = 0
++        for e in self.edges:
++            if e.Z is None or len(e.Z) < 2:
++                continue
++            for nid in (e.a, e.b):
++                if nid not in nvar:
++                    nvar[nid] = n; n += 1
++            ii = np.empty(len(e.Z), np.int64)
++            ii[0], ii[-1] = nvar[e.a], nvar[e.b]
++            ii[1:-1] = np.arange(n, n + len(e.Z) - 2); n += len(e.Z) - 2
++            idx[e.id] = ii
++        if not n:
++            return
++        z0 = np.zeros(n); wd = np.zeros(n)
++        for e in self.edges:
++            if e.id not in idx:
++                continue
++            ii = idx[e.id]
++            h = np.gradient(e.s) if len(e.s) > 2 else np.full(len(e.s), max(e.s[-1], 0.1))
++            fijo = np.full(len(e.Z), 1e4 if (e.bridge or e.tunnel) else 1.0)
++            pin = getattr(e, "_pin", None)
++            if pin is not None and len(pin) == len(e.Z):
++                fijo = np.where(pin, 300.0, fijo)
++            np.add.at(z0, ii, e.Z * h * fijo); np.add.at(wd, ii, h * fijo)
++        z0 = z0 / np.maximum(wd, 1e-9)
++        wc = Lc ** 4
++        R, Cc, V = [], [], []
++        r = 0
++        for chain in self._chains():
++            ci, cs = [], []
++            pos = 0.0
++            for e, fwd in chain:
++                if e.id not in idx:
++                    ci = None; break
++                ii = idx[e.id] if fwd else idx[e.id][::-1]
++                ss = e.s if fwd else (e.s[-1] - e.s)[::-1]
++                k0 = 1 if ci else 0
++                ci.extend(ii[k0:].tolist()); cs.extend((pos + ss[k0:]).tolist())
++                pos += float(e.s[-1])
++            if not ci or len(ci) < 3:
++                continue
++            ci = np.array(ci); cs = np.array(cs)
++            h1 = np.maximum(cs[1:-1] - cs[:-2], 1e-2); h2 = np.maximum(cs[2:] - cs[1:-1], 1e-2)
++            sw = np.sqrt(wc * 0.5 * (h1 + h2))
++            m = len(h1)
++            rows = np.arange(r, r + m); r += m
++            R += [rows, rows, rows]
++            Cc += [ci[:-2], ci[1:-1], ci[2:]]
++            V += [sw * 2 / (h1 * (h1 + h2)), -sw * 2 / (h1 * h2), sw * 2 / (h2 * (h1 + h2))]
++        if not R:
++            return
++        A = coo_matrix((np.concatenate(V), (np.concatenate(R), np.concatenate(Cc))), shape=(r, n)).tocsr()
++        from scipy.sparse import diags
++        N = (A.T @ A + diags(wd)).tocsc()
++        z = spsolve(N, wd * z0)
++        mov = np.abs(z - z0)
++        for e in self.edges:
++            if e.id in idx:
++                e.Z = z[idx[e.id]].copy()
++        for nid, k in nvar.items():
++            self.node_z[nid] = float(z[k])
++        self.log(f"  rasante de toda la red: {n} puntos, escala {Lc:.0f} m, ajuste medio {mov.mean() * 100:.0f} cm, "
++                 f"p99 {np.percentile(mov, 99) * 100:.0f} cm, máx. {mov.max():.1f} m")
++
+     def _chains(self):
+         """Une los tramos que siguen rectos a través de un cruce (la misma calle) en cadenas.
+ 
+@@ -979,6 +1061,7 @@ class RoadNetwork:
  
      def _elevation(self):
          prof = {}
@@ -184,7 +281,16 @@ index cc51fa9..9cfa572 100644
          # perfil suavizado a lo largo de cada cadena completa: sin quiebres en los cruces rectos
          for chain in self._chains():
              pts, owners = [], []
-@@ -996,7 +998,8 @@ class RoadNetwork:
+@@ -991,12 +1074,17 @@ class RoadNetwork:
+             z = self.dem_z(P[:, 0], P[:, 1])
+             s = np.concatenate([[0], np.cumsum(np.linalg.norm(np.diff(P, axis=0), axis=1))])
+             sig_m = max(e.sigma for e, _ in chain)
++            # Koura: the owner wants a race-track-smooth road. The 30 m ground model carries noise (roofs, trees)
++            # that the stock filter let through as 60-100 m waves in the grade; a longer filter keeps the hills
++            # and drops the waves
++            sig_m *= float(os.environ.get("KOURA_PERFIL", "3.0"))
+             k = max(3, int(round(18.0 / DS)) | 1)
+             if len(z) > k:
                  z = median_filter(z, size=k, mode="nearest")
              zs = gaussian_filter1d(z, sig_m / DS, mode="nearest") if len(z) > 3 else z
              pos = 0
@@ -194,7 +300,7 @@ index cc51fa9..9cfa572 100644
                  if start:
                      seg = np.concatenate([[zs[pos - 1]], zs[pos:pos + n - 1]])
                      pos += n - 1
-@@ -1004,6 +1007,12 @@ class RoadNetwork:
+@@ -1004,6 +1092,12 @@ class RoadNetwork:
                      seg = zs[pos:pos + n]
                      pos += n
                  prof[e.id] = seg if fwd else seg[::-1]
@@ -207,7 +313,7 @@ index cc51fa9..9cfa572 100644
          # altura de cada nodo: promedio de los extremos de las calles normales que llegan
          # la vía de mayor jerarquía casi no se mueve (peso x3 por cada nivel de prioridad); las
          # secundarias se adaptan a ella con una transición larga
-@@ -1015,6 +1024,13 @@ class RoadNetwork:
+@@ -1015,6 +1109,13 @@ class RoadNetwork:
                  a[0] += val * w
                  a[1] += w
          self.node_z = {n: v[0] / v[1] for n, v in acc.items()}
@@ -221,7 +327,7 @@ index cc51fa9..9cfa572 100644
          self._libres = {}
          self._estructuras_en_cadena()
          self._bocas_hundidas()
-@@ -1022,6 +1038,38 @@ class RoadNetwork:
+@@ -1022,6 +1123,38 @@ class RoadNetwork:
          # (se suponía la bajada ya hundida en el MDT, y casi nunca lo está): la calle caía 6 m en 30 m justo
          # en la boca, el coche salía volando a 60 km/h y se estrellaba contra el techo. Ahora la boca ya va
          # hundida (_bocas_hundidas) y dentro baja como mucho un ~10 %.
@@ -260,7 +366,7 @@ index cc51fa9..9cfa572 100644
          cobertura, rampa = 7.3, 60.0
          for e in self.edges:
              za, zb = self.node_z[e.a], self.node_z[e.b]
-@@ -1046,9 +1094,29 @@ class RoadNetwork:
+@@ -1046,9 +1179,29 @@ class RoadNetwork:
                  zs = prof[e.id]
                  L = e.s[-1]
                  D = max(min(12.0, L * 0.5), min(60.0, L * 0.5))
@@ -293,7 +399,21 @@ index cc51fa9..9cfa572 100644
  
      def _bocas_hundidas(self, hundir=3.0, pendiente=0.08):
          """Boca de un túnel (nodo con calles normales y túnel): se hunde hasta `hundir` m, y la calle que llega
-@@ -1511,6 +1579,125 @@ def armonizar_calzadas(scene, celda=0.5, banda=1.6, sigma=1.5, log=print):
+@@ -1159,6 +1312,13 @@ class RoadNetwork:
+                     z1_on_2 = np.interp(d2, np.sort(d1), z1[np.argsort(d1)])
+                     e1.Z = z1 + w1 * ((z1 + z2_on_1) / 2 - z1)
+                     e2.Z = z2 + w2 * ((z2 + z1_on_2) / 2 - z2)
++                    # Koura: where the two legs lie on top of each other they must keep this shared height;
++                    # _alisar_red holds these points and smooths the way out of the overlap
++                    for e_, d_ in ((e1, d1), (e2, d2)):
++                        pin = getattr(e_, "_pin", None)
++                        if pin is None or len(pin) != len(e_.Z):
++                            pin = np.zeros(len(e_.Z), bool)
++                        e_._pin = pin | (d_ <= reach)
+                     changed += 1
+         return changed
+ 
+@@ -1511,6 +1671,125 @@ def armonizar_calzadas(scene, celda=0.5, banda=1.6, sigma=1.5, log=print):
              + (f", {cuenta['parches']:.0f} m² de rendijas tapadas" if cuenta["parches"] else ""))
  
  
@@ -419,7 +539,7 @@ index cc51fa9..9cfa572 100644
  def _superficie_comun(scene, piezas, extra, en_estructura, celda, banda, sigma, cuenta):
      """Un nivel del repaso (ver armonizar_calzadas): ajusta `piezas` (y `extra`, que solo opina y se mueve donde
      va a ras de las demás) a una superficie común. Devuelve los campos para lo que va pegado a la calzada."""
-@@ -1798,6 +1985,87 @@ def _agrupar_cruces(net, solape_min=0.5):
+@@ -1798,6 +2077,87 @@ def _agrupar_cruces(net, solape_min=0.5):
      return out, cascos
  
  
@@ -507,7 +627,7 @@ index cc51fa9..9cfa572 100644
  def _altura_cruce(inc, centros):
      """Función (xy Nx2) -> z de la superficie de un cruce.
  
-@@ -2079,6 +2347,8 @@ def build_roads(net: RoadNetwork, scene, buildings_poly=None, water_poly=None, u
+@@ -2079,6 +2439,8 @@ def build_roads(net: RoadNetwork, scene, buildings_poly=None, water_poly=None, u
              verts, faces = np.vstack(vs), np.vstack(fs)
          if len(faces) == 0:
              continue
@@ -516,7 +636,7 @@ index cc51fa9..9cfa572 100644
          # altura: mezcla de los planos de cada calle que llega (ver _altura_cruce)
          zf = _altura_cruce(inc, centros)
          z = zf(verts)
-@@ -2131,12 +2401,48 @@ def build_roads(net: RoadNetwork, scene, buildings_poly=None, water_poly=None, u
+@@ -2131,12 +2493,49 @@ def build_roads(net: RoadNetwork, scene, buildings_poly=None, water_poly=None, u
          # solo el contorno del cruce (los vértices de earcut están todos en el contorno)
          surf_pts.append(pos)
  
@@ -559,7 +679,8 @@ index cc51fa9..9cfa572 100644
 +                               if e.P is not None and e.Z is not None],
 +                     "node_xy": dict(net.node_xy), "node_z": dict(net.node_z)}, open(os.environ["KOURA_DUMP"], "wb"))
 +    if os.environ.get("KOURA_ARMONIZAR", "1") != "0":
-+        armonizar_calzadas(scene, celda=float(os.environ.get("KOURA_CELDA", "0.5")), log=log)
++        armonizar_calzadas(scene, celda=float(os.environ.get("KOURA_CELDA", "0.5")),
++                           banda=float(os.environ.get("KOURA_BANDA", "0.5")), log=log)
 +    # alisar_picos(scene, log=log)   # disabled: the steep triangles are thin slivers, relaxing them moved the road by metres
 +    if os.environ.get("KOURA_SUAVIZAR", "1") != "0":
 +        suavizar_rodadura(scene, log=log)
