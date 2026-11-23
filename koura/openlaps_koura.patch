@@ -142,7 +142,7 @@ index 8aba20d..64c3e4d 100644
          return EU
      return GENERIC
 diff --git a/openlaps/roads.py b/openlaps/roads.py
-index cc51fa9..213bd4c 100644
+index cc51fa9..9cfa572 100644
 --- a/openlaps/roads.py
 +++ b/openlaps/roads.py
 @@ -19,6 +19,7 @@ Pasos del algoritmo (ver README para la explicación larga):
@@ -176,7 +176,52 @@ index cc51fa9..213bd4c 100644
      return z
  
  
-@@ -1022,6 +1023,38 @@ class RoadNetwork:
+@@ -979,6 +980,7 @@ class RoadNetwork:
+ 
+     def _elevation(self):
+         prof = {}
++        pasa = {}
+         # perfil suavizado a lo largo de cada cadena completa: sin quiebres en los cruces rectos
+         for chain in self._chains():
+             pts, owners = [], []
+@@ -996,7 +998,8 @@ class RoadNetwork:
+                 z = median_filter(z, size=k, mode="nearest")
+             zs = gaussian_filter1d(z, sig_m / DS, mode="nearest") if len(z) > 3 else z
+             pos = 0
+-            for e, fwd, start, n in owners:
++            prio_c = max(e.prio for e, _ in chain)
++            for io, (e, fwd, start, n) in enumerate(owners):
+                 if start:
+                     seg = np.concatenate([[zs[pos - 1]], zs[pos:pos + n - 1]])
+                     pos += n - 1
+@@ -1004,6 +1007,12 @@ class RoadNetwork:
+                     seg = zs[pos:pos + n]
+                     pos += n
+                 prof[e.id] = seg if fwd else seg[::-1]
++                if io < len(owners) - 1 and not (e.bridge or e.tunnel):
++                    # Koura: the node between two links of the same street keeps the street's own smooth height
++                    nid = e.b if fwd else e.a
++                    clave = (prio_c, float(s[-1]))
++                    if nid not in pasa or clave > pasa[nid][0]:
++                        pasa[nid] = (clave, float(seg[-1]))
+         # altura de cada nodo: promedio de los extremos de las calles normales que llegan
+         # la vía de mayor jerarquía casi no se mueve (peso x3 por cada nivel de prioridad); las
+         # secundarias se adaptan a ella con una transición larga
+@@ -1015,6 +1024,13 @@ class RoadNetwork:
+                 a[0] += val * w
+                 a[1] += w
+         self.node_z = {n: v[0] / v[1] for n, v in acc.items()}
++        if os.environ.get("KOURA_PASA", "1") != "0":
++            # Koura: where a street runs straight through a junction, the junction takes that street's height and
++            # the side streets come up or down to it. Averaging all arms put a dip or a hump on the through road
++            # at every side street (the owner's "sudden crests" and dips on a straight at speed).
++            for nid, (_, zn) in pasa.items():
++                if nid in self.node_z:
++                    self.node_z[nid] = zn
+         self._libres = {}
+         self._estructuras_en_cadena()
+         self._bocas_hundidas()
+@@ -1022,6 +1038,38 @@ class RoadNetwork:
          # (se suponía la bajada ya hundida en el MDT, y casi nunca lo está): la calle caía 6 m en 30 m justo
          # en la boca, el coche salía volando a 60 km/h y se estrellaba contra el techo. Ahora la boca ya va
          # hundida (_bocas_hundidas) y dentro baja como mucho un ~10 %.
@@ -215,7 +260,7 @@ index cc51fa9..213bd4c 100644
          cobertura, rampa = 7.3, 60.0
          for e in self.edges:
              za, zb = self.node_z[e.a], self.node_z[e.b]
-@@ -1046,9 +1079,29 @@ class RoadNetwork:
+@@ -1046,9 +1094,29 @@ class RoadNetwork:
                  zs = prof[e.id]
                  L = e.s[-1]
                  D = max(min(12.0, L * 0.5), min(60.0, L * 0.5))
@@ -248,17 +293,17 @@ index cc51fa9..213bd4c 100644
  
      def _bocas_hundidas(self, hundir=3.0, pendiente=0.08):
          """Boca de un túnel (nodo con calles normales y túnel): se hunde hasta `hundir` m, y la calle que llega
-@@ -1511,6 +1564,125 @@ def armonizar_calzadas(scene, celda=0.5, banda=1.6, sigma=1.5, log=print):
+@@ -1511,6 +1579,125 @@ def armonizar_calzadas(scene, celda=0.5, banda=1.6, sigma=1.5, log=print):
              + (f", {cuenta['parches']:.0f} m² de rendijas tapadas" if cuenta["parches"] else ""))
  
  
-+def suavizar_rodadura(scene, sigma=None, tope=0.35, pasadas=3, log=print):
++def suavizar_rodadura(scene, sigma=None, tope=0.6, pasadas=3, log=print):
 +    """Koura: irons the drivable road surface. Each road vertex takes the height of the plane that best fits the
 +    road around it (gaussian weights, `sigma` m), so a constant grade or a banked curve is left exactly as it is
 +    and only waves shorter than a few car lengths go. Pieces that meet at the same place get the same height.
 +    Neighbours more than 0.6 m above or below are another road (a terrace, a ramp) and do not count. Bridges and
 +    tunnels are left alone. No vertex moves more than `tope` m."""
-+    sigma = float(os.environ.get("KOURA_SIGMA", "4.0")) if sigma is None else sigma
++    sigma = float(os.environ.get("KOURA_SIGMA", "5.0")) if sigma is None else sigma
 +    aparte = getattr(scene, "aparte", set())
 +    piezas = [p for k in scene.pieces if k[0] == "calzada" and k[2] for p in scene.pieces[k]
 +              if id(p) not in aparte and len(p.faces)]
@@ -269,7 +314,7 @@ index cc51fa9..213bd4c 100644
 +    z0 = P[:, 2].copy()
 +    z = z0.copy()
 +    arbol = cKDTree(P[:, :2])
-+    K = 120
++    K = 160
 +    R = 2.5 * sigma
 +    for _ in range(pasadas):
 +        nuevo = z.copy()
@@ -374,7 +419,7 @@ index cc51fa9..213bd4c 100644
  def _superficie_comun(scene, piezas, extra, en_estructura, celda, banda, sigma, cuenta):
      """Un nivel del repaso (ver armonizar_calzadas): ajusta `piezas` (y `extra`, que solo opina y se mueve donde
      va a ras de las demás) a una superficie común. Devuelve los campos para lo que va pegado a la calzada."""
-@@ -1798,6 +1970,87 @@ def _agrupar_cruces(net, solape_min=0.5):
+@@ -1798,6 +1985,87 @@ def _agrupar_cruces(net, solape_min=0.5):
      return out, cascos
  
  
@@ -462,7 +507,7 @@ index cc51fa9..213bd4c 100644
  def _altura_cruce(inc, centros):
      """Función (xy Nx2) -> z de la superficie de un cruce.
  
-@@ -2079,6 +2332,8 @@ def build_roads(net: RoadNetwork, scene, buildings_poly=None, water_poly=None, u
+@@ -2079,6 +2347,8 @@ def build_roads(net: RoadNetwork, scene, buildings_poly=None, water_poly=None, u
              verts, faces = np.vstack(vs), np.vstack(fs)
          if len(faces) == 0:
              continue
@@ -471,7 +516,7 @@ index cc51fa9..213bd4c 100644
          # altura: mezcla de los planos de cada calle que llega (ver _altura_cruce)
          zf = _altura_cruce(inc, centros)
          z = zf(verts)
-@@ -2131,12 +2386,22 @@ def build_roads(net: RoadNetwork, scene, buildings_poly=None, water_poly=None, u
+@@ -2131,12 +2401,48 @@ def build_roads(net: RoadNetwork, scene, buildings_poly=None, water_poly=None, u
          # solo el contorno del cruce (los vértices de earcut están todos en el contorno)
          surf_pts.append(pos)
  
@@ -479,6 +524,32 @@ index cc51fa9..213bd4c 100644
      if net.islands:
          _island_meshes(net, scene, carve_pts, ortho, proj)
      road_union = unary_union([p for p, _ in road_polys]) if road_polys else None
++    if road_union is not None and os.environ.get("KOURA_TAPAR", "1") != "0":
++        # Koura: small patches of ground left inside the road (between the two halves of a road that splits for
++        # a few metres at a junction, or between junction pieces). The owner saw them as "grass in the middle" of
++        # junctions. Any hole in the road smaller than 400 m2 is paved, at the height of the road around it.
++        sv = np.vstack(surf_pts) if surf_pts else np.zeros((0, 3))
++        huecos = [shapely.geometry.Polygon(r) for g in iter_polys(road_union) for r in g.interiors]
++        huecos = [h for h in huecos if 0.2 < h.area < 400.0]
++        if huecos and len(sv):
++            arbol_s = cKDTree(sv[:, :2])
++            ref = min((e for _, e in road_polys), key=lambda e: 0)
++            m2 = 0.0
++            for h in huecos:
++                hb = h.buffer(0.15, join_style=2)
++                v_, f_ = triangulate_polygon(hb, 2.0)
++                if len(f_) == 0:
++                    continue
++                v_, f_ = _refinar_interior(v_, f_, 2.5)
++                d_, i_ = arbol_s.query(v_, k=min(8, len(sv)))
++                w_ = 1.0 / (d_ ** 2 + 0.25)
++                z_ = (w_ * sv[i_, 2]).sum(1) / w_.sum(1)
++                _add_marcado(scene, "relleno", "calzada", "asfalto_cruce", np.column_stack([v_, z_]), v_ / 14.0, f_, "ROAD")
++                road_polys.append((hb, ref))
++                carve_pts.append(np.column_stack([v_, z_, np.full(len(v_), 1.2)]))
++                m2 += h.area
++            road_union = unary_union([p for p, _ in road_polys])
++            log(f"  {len(huecos)} huecos dentro de la calzada asfaltados ({m2:.0f} m²)")
      _add_skirts(scene, skirts, road_union)
      # ---- repaso: una sola superficie continua (lo que se construye después la sigue: seguir_realce)
 -    armonizar_calzadas(scene, log=log)
