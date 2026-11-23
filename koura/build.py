@@ -68,6 +68,9 @@ def fetch_osm():
     cache = os.path.join(ROOT, "cache", "osm_koura.json")
     if os.path.exists(cache):
         return json.load(open(cache))
+    snap = os.path.join(ROOT, "koura", "data", "osm_koura.json")     # the snapshot kept in the repo
+    if os.path.exists(snap):
+        return json.load(open(snap))
     # snapshot for the whole S3 rectangle, so every stage is fed from the same data
     r3 = tuple(float(v) for v in ZONE["stages"]["S3"]["expected"]["rect_local_m"])
     big = LocalProjection.marco(O["lat"], O["lon"], r3).bbox().padded(300)
