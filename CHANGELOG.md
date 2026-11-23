@@ -1,0 +1,46 @@
+# Changelog
+
+Every build that was installed in the game, newest first. "Driven" means the owner drove it and gave feedback; a build is never called working from file checks alone.
+
+Smoothness figures come from `koura/survey.py`: the share of road length where the slope changes by more than 2 % (or 5 %) within 8 m. A race-track-smooth road has none.
+
+## Build 8 · 2026-11-23 · not driven yet
+- Bare ground patches inside junctions paved (78 across the map), including the two in the middle of the highway at the Aaba junction.
+- Smoothness as build 7.
+
+## Build 7 · 2026-11-23
+- Hairpins and sharp forks: the two legs stay level only where they overlap and ease out gradually. Before, they left pits of 2 to 3 m.
+- Worst slope jump on the map: 45 % down to 13.7 %.
+- Main highways over 2 %: 0.4 % of length. Over 5 %: none.
+
+## Build 6 · 2026-11-23
+- Network smoothing run a second time after the fork merge step.
+
+## Build 5 · 2026-11-23
+- **Road grades smoothed over the whole network in one pass.** A road now keeps its own line through every side street instead of being pulled up or down at each junction.
+- Aaba highway stretch: worst slope jump 15.8 % down to about 7 %.
+
+## Build 4 · 2026-11-23 · driven
+- Pavements and kerbs removed: the paved strips at junctions looked like parking strips and the kerbs damaged the car.
+- Small holes inside roads paved.
+- Owner: "Better, but still the bumps on the highway are very strong", worst at junctions; the Aaba highway junction "horrible".
+
+## Build 3 · 2026-11-23 · driven
+- **Karting Mania rebuilt** as one purpose-made surface traced from aerial imagery (832 m racing line, 8 m wide), replacing ordinary streets.
+- Drivable surface ironed with local plane fits. Share of the main loop over 0.5 g of vertical kick at 100 km/h: 2.1 % down to 0.4 %.
+- New tool `koura/ride.py`.
+- Owner: road "a lot better", junctions and kerbs bad, the dip from the video still there.
+
+## Build 2 · 2026-11-23 · driven
+- Aerial imagery on the ground at 0.5 m.
+- Lebanon profile: flat roofs with water tanks, stone-coloured walls, olives as the main tree.
+- Trees placed from canopy height data.
+- Owner: hills close but some too gentle; sharp bumps and sudden dips.
+
+## Build 1 (preview) · 2026-11-23 · driven
+- First build of the whole area: 27.5 km², 198 km of road, 6,110 buildings, 11 start points, a rough kart track.
+- Edge of the map: invisible wall instead of the generator's live-mode message.
+
+## Trial · 2026-11-23 · driven
+- 1 km square of Btouratij to prove the approach.
+- Owner: "Excellent start. More detail than I anticipated road-wise."

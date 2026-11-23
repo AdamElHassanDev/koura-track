@@ -4,7 +4,7 @@ Start with `handoff/START_HERE.md`. It links everything else. `handoff/RUN.md` s
 
 Rules that hold for the whole project:
 
-- Personal use only. The map is never published, so aerial imagery that cannot be redistributed is allowed as a source.
+- Personal use only. The built map is never published, so aerial imagery that cannot be redistributed is allowed as a build-time source. The repository itself is public (https://github.com/AdamElHassanDev/koura-track): never commit imagery, renders made from it, or built tracks.
 - Target: Assetto Corsa on this Fedora desktop, run through Steam Proton with Custom Shaders Patch 0.2.11.
 - No Blender, ksEditor or Wine on the build path. The track file is written in pure Python.
 - Never claim a build works in game from file checks alone. Either the in-game probe ran, or the owner drove it and said so. Record which in `handoff/PROGRESS.md`.
@@ -16,3 +16,4 @@ Rules that hold for the whole project:
 - The standard outside stage 1 is "it looks like the real drive", for the whole detailed ground, not only the strip beside the route.
 - `handoff/DETAIL-STANDARD.md` is the owner's quality bar. Any tool and any online source may be used for detail work.
 - Git: commits show only the owner (`AdamElHassanDev`), with no AI attribution of any kind. See the Git section of `handoff/RUN.md`.
+- Keep the public pages current: add a `CHANGELOG.md` entry for every build the owner receives, and tick `ROADMAP.md` when a work package passes its gate.

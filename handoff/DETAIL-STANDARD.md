@@ -72,7 +72,7 @@ Generic is allowed here only for: house fronts with no photo, small roadside clu
 
 ## Where the information comes from
 
-Use anything. The map is for the owner's personal use and is never published, so sources that cannot be redistributed are allowed. Keep every downloaded item under `recordings/online/` or `koura/overrides/facades/`, never in git.
+Use anything. The built map is for the owner's personal use and is never published (only the code and plan are public), so sources that cannot be redistributed are allowed. Keep every downloaded item under `recordings/online/` or `koura/overrides/facades/`, never in git.
 
 - Aerial and satellite: Esri World Imagery (zoom 18 and 19), Google Earth and Google Maps satellite and 3D views, Bing, Apple Maps. Compare dates and prefer the newest.
 - Street level: Google Street View and user photo spheres if any exist for these roads, Mapillary, KartaView, photos attached to map listings.

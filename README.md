@@ -2,9 +2,9 @@
 
 A free-roam map of Koura, North Lebanon, for **Assetto Corsa**: the villages of Btouratij, Nakhle, Aaba, Bishmizzine, Kfar Hazir, Amioun, Kousba and Bsarma, the roads between them, and the Karting Mania kart track. It is generated from open map data by a Python script, with no 3D modelling tool involved.
 
-This is a personal project and a work in progress.
+This is a personal project and a work in progress. See the [changelog](CHANGELOG.md) for every build so far and the [roadmap](ROADMAP.md) for what is done and what is next.
 
-![The loop on the map](docs/loop_on_map.png)
+![The loop on the map](docs/loop_on_map.jpg)
 
 ## What is in the map today
 
@@ -18,7 +18,11 @@ This is a personal project and a work in progress.
 | Kart track | 832 m racing line traced from aerial imagery |
 | Track size | about 700 MB, 8 million vertices |
 
-![A junction on the Amioun to Kousba road, rendered from the build](docs/junction_render.png)
+| A junction on the Amioun to Kousba road | Karting Mania |
+|---|---|
+| ![Junction render](docs/junction_render.jpg) | ![Kart track render](docs/kart_track_render.jpg) |
+
+Both are software renders of the built track without aerial imagery.
 
 ## How it is made
 
@@ -59,18 +63,26 @@ The built track is not stored in this repository: it is large, changes with ever
 
 | Path | What |
 |---|---|
-| `koura/` | build driver, kart track trace, measuring tools, generator patch, OSM snapshot |
-| `handoff/` | the project plan: work packages, quality bar, findings, progress ledger |
-| `handoff/inputs/` | the zone, routes, start points and list of recent places |
-| `docs/` | images for this page |
+| [`koura/`](koura/) | build driver, kart track trace, measuring tools, generator patch, map-data snapshot |
+| [`handoff/`](handoff/) | the project plan: work packages, quality bar, findings, progress ledger |
+| [`handoff/inputs/`](handoff/inputs/) | the zone, routes, start points and list of recent places |
+| [`handoff/evidence/`](handoff/evidence/) | measurements and maps that back the claims in the ledger |
+| [`docs/`](docs/) | images for this page |
+| [`CHANGELOG.md`](CHANGELOG.md) | every build installed in the game, with the owner's feedback |
+| [`ROADMAP.md`](ROADMAP.md) | status of each work package |
 
-Start with [`handoff/START_HERE.md`](handoff/START_HERE.md) for the plan and [`handoff/PROGRESS.md`](handoff/PROGRESS.md) for the current state.
+Start with [`handoff/START_HERE.md`](handoff/START_HERE.md) for the plan and [`handoff/PROGRESS.md`](handoff/PROGRESS.md) for the detailed state.
+
+## Tracking progress
+
+- **`CHANGELOG.md`** gets an entry for every build that is installed in the game, with what changed, the measured smoothness and what the owner said after driving it.
+- **`ROADMAP.md`** shows each work package as done, partly done or not started.
+- **`handoff/PROGRESS.md`** is the working ledger: one row per piece of work, with the evidence and whether it was driven or only checked from files.
+- **`handoff/evidence/survey.json`** lists every road by its worst slope jump, with coordinates, from the latest build.
 
 ## Status
 
-Done: the road network with measured smooth grades, start points, the Lebanon look, the first real kart track surface.
-
-Next: junction shapes, missing buildings, tyre walls and timing at the kart track, fine detail in Btouratij and Nakhle.
+Build 8. The road network has measured smooth grades, start points in every village, the Lebanon look, and the first real kart track surface. Next: junction shapes, missing buildings, tyre walls and timing at the kart track, fine detail in Btouratij and Nakhle. Details in the [roadmap](ROADMAP.md).
 
 ## Credits and licences
 
@@ -78,3 +90,4 @@ Next: junction shapes, missing buildings, tyre walls and timing at the kart trac
 - Generator: OpenLaps, MIT.
 - Heights: Copernicus DEM GLO-30. Building outlines: Microsoft Global ML Building Footprints. Canopy height: Meta and WRI.
 - Aerial imagery is used only at build time and is not included here.
+- This project's own code and documents: MIT, see [`LICENSE`](LICENSE).

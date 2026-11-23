@@ -1,0 +1,6 @@
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+koura/data/*.json linguist-generated=true
+koura/openlaps_koura.patch linguist-generated=true
+handoff/evidence/* linguist-documentation=true

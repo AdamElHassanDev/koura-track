@@ -14,7 +14,7 @@ Written for an agent that follows instructions literally. Follow it literally.
 8. Commit at the end of the session with the work package number in the message.
 9. End every session by updating `PROGRESS.md`: the ledger row, what was checked and how, anything left over, and the next package to do.
 10. Do not ask the owner questions mid-session. Use the defaults in `PROGRESS.md` and list the question there.
-11. Everything is for personal use and is never published. Do not upload outputs anywhere.
+11. The built map is for personal use and is never published. Do not upload outputs, imagery or renders made from imagery anywhere. The code and plan are public on GitHub (see the Git section).
 12. For detail work you may use any tool and any online source (satellite and street imagery, videos, social media, shop listings). `DETAIL-STANDARD.md` lists them. Keep what you download out of git.
 
 ## Git
