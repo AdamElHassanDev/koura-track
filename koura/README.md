@@ -11,6 +11,7 @@ The project's own code. The map generator itself lives in `openlaps/` (created b
 | `data/osm_koura.json` | Snapshot of the OpenStreetMap data the map is built from. |
 | `ride.py` | Walks the named routes on the built road surface: vertical g at speed, kinks, holes. |
 | `grade.py` | Slope wobble on one stretch of a route, with an optional text plot. |
+| `elevation.py` | Compares each route's heights and total climb with the raw height model. |
 | `survey.py` | Walks every road of the map and lists the worst places with coordinates. |
 
 ## Stages
@@ -33,7 +34,7 @@ Environment variables read by the patched generator. The defaults are the values
 
 | Variable | Default | Effect |
 |---|---|---|
-| `KOURA_SPLINE_L` | 45 | Length scale (m) of the network-wide grade smoothing. 0 turns it off. |
+| `KOURA_SPLINE_L` | 30 | Length scale (m) of the network-wide grade smoothing. 0 turns it off. |
 | `KOURA_SIGMA` | 5 | Radius (m) of the surface ironing. |
 | `KOURA_SUAVIZAR` | 1 | Surface ironing on or off. |
 | `KOURA_BANDA` | 0.5 | How far (m) the merge pass may pull two road pieces together. |
@@ -41,7 +42,8 @@ Environment variables read by the patched generator. The defaults are the values
 | `KOURA_TAPAR` | 1 | Pave small holes inside roads. |
 | `KOURA_PASA` | 1 | Through streets keep their own height at junctions. |
 | `KOURA_PLANO` | 1 | One tangent plane per junction. |
-| `KOURA_PERFIL` | 3 | Multiplier on the per-street profile filter. |
+| `KOURA_PERFIL` | 1 | Multiplier on the per-street profile filter. Above 1 flattens real hills. |
+| `KOURA_PUENTES` | 0 | 1 builds OSM bridges as separate decks (they leave a ground band across the road). |
 | `KOURA_DUMP` | unset | Path to write the designed network heights to, for debugging. |
 
 ## Measuring a build
