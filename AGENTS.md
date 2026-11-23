@@ -17,3 +17,4 @@ Rules that hold for the whole project:
 - `handoff/DETAIL-STANDARD.md` is the owner's quality bar. Any tool and any online source may be used for detail work.
 - Git: commits show only the owner (`AdamElHassanDev`), with no AI attribution of any kind. See the Git section of `handoff/RUN.md`.
 - Keep the public pages current: add a `CHANGELOG.md` entry for every build the owner receives, and tick `ROADMAP.md` when a work package passes its gate.
+- Owner's additions of 2026-11-23 (in `handoff/DETAIL-STANDARD.md`): smooth roads with real elevation, recognisable houses from photographs, no dead ground inside the loop, accurate vegetation and walls.

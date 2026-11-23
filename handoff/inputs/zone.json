@@ -254,6 +254,28 @@
      -2560
     ]
    }
+  },
+  "B": {
+   "title": "Aaba bridge on the Btouratij to Aaba road (quick test build)",
+   "terrain_res_m": 3.0,
+   "parts": [
+    {
+     "type": "box",
+     "south": 34.351,
+     "west": 35.833,
+     "north": 34.356,
+     "east": 35.8385
+    }
+   ],
+   "expected": {
+    "zone_km2": 0.28,
+    "rect_local_m": [
+     0,
+     2048,
+     1024,
+     3072
+    ]
+   }
   }
  },
  "routes": {
