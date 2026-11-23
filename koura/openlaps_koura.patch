@@ -142,7 +142,7 @@ index 8aba20d..64c3e4d 100644
          return EU
      return GENERIC
 diff --git a/openlaps/roads.py b/openlaps/roads.py
-index cc51fa9..3d118a0 100644
+index cc51fa9..6cbff2d 100644
 --- a/openlaps/roads.py
 +++ b/openlaps/roads.py
 @@ -19,6 +19,7 @@ Pasos del algoritmo (ver README para la explicación larga):
@@ -636,7 +636,7 @@ index cc51fa9..3d118a0 100644
          # altura: mezcla de los planos de cada calle que llega (ver _altura_cruce)
          zf = _altura_cruce(inc, centros)
          z = zf(verts)
-@@ -2131,12 +2493,49 @@ def build_roads(net: RoadNetwork, scene, buildings_poly=None, water_poly=None, u
+@@ -2131,12 +2493,53 @@ def build_roads(net: RoadNetwork, scene, buildings_poly=None, water_poly=None, u
          # solo el contorno del cruce (los vértices de earcut están todos en el contorno)
          surf_pts.append(pos)
  
@@ -649,8 +649,12 @@ index cc51fa9..3d118a0 100644
 +        # a few metres at a junction, or between junction pieces). The owner saw them as "grass in the middle" of
 +        # junctions. Any hole in the road smaller than 400 m2 is paved, at the height of the road around it.
 +        sv = np.vstack(surf_pts) if surf_pts else np.zeros((0, 3))
-+        huecos = [shapely.geometry.Polygon(r) for g in iter_polys(road_union) for r in g.interiors]
-+        huecos = [h for h in huecos if 0.2 < h.area < 400.0]
++        # the pieces round a hole often leave a centimetre slit to the outside, so the hole is not closed: the
++        # road outline is grown by half a metre first and the holes found are grown back
++        huecos = [shapely.geometry.Polygon(r).buffer(0.5, join_style=2)
++                  for g in iter_polys(road_union.buffer(0.5, join_style=2)) for r in g.interiors]
++        huecos = [h.difference(road_union) for h in huecos if 0.2 < h.area < 600.0]
++        huecos = [g for h in huecos for g in iter_polys(h) if g.area > 0.2]
 +        if huecos and len(sv):
 +            arbol_s = cKDTree(sv[:, :2])
 +            ref = min((e for _, e in road_polys), key=lambda e: 0)

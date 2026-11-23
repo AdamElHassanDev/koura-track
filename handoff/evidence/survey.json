@@ -209,7 +209,7 @@
 "class": "unclassified",
 "km": 1.36,
 "kink8_max": 7.5,
-"wave30_max": 8.5,
+"wave30_max": 8.6,
 "holes_pct": 5.7,
 "over2_m": 50,
 "worst_lat": 34.29644,
@@ -437,11 +437,11 @@
 "class": "unclassified",
 "km": 1.43,
 "kink8_max": 5.7,
-"wave30_max": 6.8,
+"wave30_max": 6.9,
 "holes_pct": 0.0,
 "over2_m": 24,
-"worst_lat": 34.32525,
-"worst_lon": 35.8522
+"worst_lat": 34.32533,
+"worst_lon": 35.85242
 },
 {
 "way": 685671454,
@@ -535,7 +535,7 @@
 "kink8_max": 5.4,
 "wave30_max": 5.4,
 "holes_pct": 0.0,
-"over2_m": 36,
+"over2_m": 34,
 "worst_lat": 34.35953,
 "worst_lon": 35.82966
 },
@@ -593,7 +593,7 @@
 "class": "residential",
 "km": 0.21,
 "kink8_max": 5.2,
-"wave30_max": 4.1,
+"wave30_max": 4.2,
 "holes_pct": 0.0,
 "over2_m": 10,
 "worst_lat": 34.29581,
@@ -1025,9 +1025,9 @@
 "class": "tertiary",
 "km": 0.87,
 "kink8_max": 4.0,
-"wave30_max": 7.4,
+"wave30_max": 7.3,
 "holes_pct": 0.0,
-"over2_m": 24,
+"over2_m": 26,
 "worst_lat": 34.3024,
 "worst_lon": 35.85416
 },
@@ -1068,16 +1068,16 @@
 "worst_lon": 35.82411
 },
 {
-"way": 452329470,
-"name": "",
-"class": "primary_link",
-"km": 0.06,
+"way": 702970903,
+"name": "Rue Tripoli",
+"class": "primary",
+"km": 0.04,
 "kink8_max": 3.9,
-"wave30_max": 2.6,
+"wave30_max": 3.0,
 "holes_pct": 0.0,
-"over2_m": 4,
-"worst_lat": 34.29833,
-"worst_lon": 35.84507
+"over2_m": 6,
+"worst_lat": 34.30375,
+"worst_lon": 35.85216
 },
 {
 "way": 843487196,
@@ -1162,18 +1162,6 @@
 "over2_m": 4,
 "worst_lat": 34.2988,
 "worst_lon": 35.79299
-},
-{
-"way": 702970903,
-"name": "Rue Tripoli",
-"class": "primary",
-"km": 0.04,
-"kink8_max": 3.7,
-"wave30_max": 3.2,
-"holes_pct": 0.0,
-"over2_m": 4,
-"worst_lat": 34.30375,
-"worst_lon": 35.85216
 },
 {
 "way": 843491510,
@@ -1704,18 +1692,6 @@
 "worst_lon": 35.77638
 },
 {
-"way": 287469982,
-"name": "Rue Al Arz",
-"class": "primary",
-"km": 0.08,
-"kink8_max": 3.0,
-"wave30_max": 2.4,
-"holes_pct": 0.0,
-"over2_m": 6,
-"worst_lat": 34.3035,
-"worst_lon": 35.8518
-},
-{
 "way": 702970892,
 "name": "",
 "class": "residential",
@@ -1738,6 +1714,18 @@
 "over2_m": 4,
 "worst_lat": 34.3064,
 "worst_lon": 35.85109
+},
+{
+"way": 694240375,
+"name": "",
+"class": "secondary",
+"km": 0.45,
+"kink8_max": 3.0,
+"wave30_max": 2.5,
+"holes_pct": 0.0,
+"over2_m": 4,
+"worst_lat": 34.34526,
+"worst_lon": 35.85064
 },
 {
 "way": 843489583,
@@ -1824,6 +1812,42 @@
 "worst_lon": 35.81445
 },
 {
+"way": 709676987,
+"name": "Al Arz Street",
+"class": "primary",
+"km": 0.09,
+"kink8_max": 2.9,
+"wave30_max": 2.7,
+"holes_pct": 0.0,
+"over2_m": 20,
+"worst_lat": 34.29848,
+"worst_lon": 35.84499
+},
+{
+"way": 387141696,
+"name": "Al-Barid Street",
+"class": "secondary",
+"km": 0.45,
+"kink8_max": 2.9,
+"wave30_max": 3.9,
+"holes_pct": 0.0,
+"over2_m": 10,
+"worst_lat": 34.30022,
+"worst_lon": 35.85008
+},
+{
+"way": 702970900,
+"name": "",
+"class": "residential",
+"km": 0.18,
+"kink8_max": 2.9,
+"wave30_max": 2.4,
+"holes_pct": 0.0,
+"over2_m": 4,
+"worst_lat": 34.30348,
+"worst_lon": 35.85133
+},
+{
 "way": 309783059,
 "name": "",
 "class": "residential",
@@ -1884,16 +1908,16 @@
 "worst_lon": 35.77418
 },
 {
-"way": 608131624,
+"way": 709624151,
 "name": "",
-"class": "residential",
-"km": 0.27,
+"class": "secondary",
+"km": 0.13,
 "kink8_max": 2.8,
-"wave30_max": 2.7,
+"wave30_max": 1.6,
 "holes_pct": 0.0,
 "over2_m": 6,
 "worst_lat": 34.30347,
-"worst_lon": 35.81106
+"worst_lon": 35.81112
 },
 {
 "way": 441411133,
@@ -1920,16 +1944,16 @@
 "worst_lon": 35.84963
 },
 {
-"way": 702970900,
-"name": "",
-"class": "residential",
-"km": 0.18,
+"way": 287469982,
+"name": "Rue Al Arz",
+"class": "primary",
+"km": 0.08,
 "kink8_max": 2.8,
-"wave30_max": 2.4,
+"wave30_max": 2.0,
 "holes_pct": 0.0,
 "over2_m": 6,
-"worst_lat": 34.30348,
-"worst_lon": 35.85133
+"worst_lat": 34.3035,
+"worst_lon": 35.8518
 },
 {
 "way": 702948552,
@@ -2004,6 +2028,18 @@
 "worst_lon": 35.8437
 },
 {
+"way": 443973215,
+"name": "",
+"class": "secondary",
+"km": 0.04,
+"kink8_max": 2.7,
+"wave30_max": 0.8,
+"holes_pct": 0.0,
+"over2_m": 4,
+"worst_lat": 34.30971,
+"worst_lon": 35.77302
+},
+{
 "way": 705461209,
 "name": "",
 "class": "residential",
@@ -2014,6 +2050,18 @@
 "over2_m": 4,
 "worst_lat": 34.31053,
 "worst_lon": 35.77676
+},
+{
+"way": 608131624,
+"name": "",
+"class": "residential",
+"km": 0.27,
+"kink8_max": 2.7,
+"wave30_max": 2.2,
+"holes_pct": 0.0,
+"over2_m": 6,
+"worst_lat": 34.30347,
+"worst_lon": 35.81106
 },
 {
 "way": 441411131,
@@ -2100,18 +2148,6 @@
 "worst_lon": 35.83491
 },
 {
-"way": 701086684,
-"name": "",
-"class": "residential",
-"km": 0.33,
-"kink8_max": 2.7,
-"wave30_max": 2.4,
-"holes_pct": 0.0,
-"over2_m": 6,
-"worst_lat": 34.36015,
-"worst_lon": 35.83898
-},
-{
 "way": 701928653,
 "name": "",
 "class": "residential",
@@ -2184,6 +2220,18 @@
 "worst_lon": 35.7749
 },
 {
+"way": 443973208,
+"name": "Rue Al Arz",
+"class": "primary",
+"km": 0.07,
+"kink8_max": 2.6,
+"wave30_max": 2.0,
+"holes_pct": 0.0,
+"over2_m": 2,
+"worst_lat": 34.3095,
+"worst_lon": 35.77271
+},
+{
 "way": 701837060,
 "name": "",
 "class": "residential",
@@ -2206,30 +2254,6 @@
 "over2_m": 12,
 "worst_lat": 34.29818,
 "worst_lon": 35.81112
-},
-{
-"way": 709624151,
-"name": "",
-"class": "secondary",
-"km": 0.13,
-"kink8_max": 2.6,
-"wave30_max": 1.6,
-"holes_pct": 0.0,
-"over2_m": 6,
-"worst_lat": 34.30347,
-"worst_lon": 35.81112
-},
-{
-"way": 387141696,
-"name": "Al-Barid Street",
-"class": "secondary",
-"km": 0.45,
-"kink8_max": 2.6,
-"wave30_max": 3.3,
-"holes_pct": 0.0,
-"over2_m": 6,
-"worst_lat": 34.29984,
-"worst_lon": 35.84979
 },
 {
 "way": 442035990,
@@ -2290,6 +2314,18 @@
 "over2_m": 2,
 "worst_lat": 34.37426,
 "worst_lon": 35.8251
+},
+{
+"way": 701086684,
+"name": "",
+"class": "residential",
+"km": 0.33,
+"kink8_max": 2.6,
+"wave30_max": 2.4,
+"holes_pct": 0.0,
+"over2_m": 6,
+"worst_lat": 34.36015,
+"worst_lon": 35.83898
 },
 {
 "way": 793702558,
@@ -2393,9 +2429,9 @@
 "class": "residential",
 "km": 0.15,
 "kink8_max": 2.5,
-"wave30_max": 3.2,
+"wave30_max": 2.5,
 "holes_pct": 0.0,
-"over2_m": 6,
+"over2_m": 4,
 "worst_lat": 34.30965,
 "worst_lon": 35.77454
 },
@@ -2657,23 +2693,11 @@
 "class": "primary",
 "km": 0.97,
 "kink8_max": 2.4,
-"wave30_max": 2.9,
+"wave30_max": 3.0,
 "holes_pct": 0.0,
 "over2_m": 6,
 "worst_lat": 34.29834,
 "worst_lon": 35.84392
-},
-{
-"way": 709676987,
-"name": "Al Arz Street",
-"class": "primary",
-"km": 0.09,
-"kink8_max": 2.4,
-"wave30_max": 2.5,
-"holes_pct": 0.0,
-"over2_m": 12,
-"worst_lat": 34.29889,
-"worst_lon": 35.84547
 },
 {
 "way": 702948555,
@@ -2736,18 +2760,6 @@
 "worst_lon": 35.804
 },
 {
-"way": 443973215,
-"name": "",
-"class": "secondary",
-"km": 0.04,
-"kink8_max": 2.3,
-"wave30_max": 0.9,
-"holes_pct": 0.0,
-"over2_m": 4,
-"worst_lat": 34.30969,
-"worst_lon": 35.773
-},
-{
 "way": 452742512,
 "name": "",
 "class": "secondary",
@@ -2770,18 +2782,6 @@
 "over2_m": 4,
 "worst_lat": 34.34111,
 "worst_lon": 35.82231
-},
-{
-"way": 694240375,
-"name": "",
-"class": "secondary",
-"km": 0.45,
-"kink8_max": 2.3,
-"wave30_max": 2.1,
-"holes_pct": 0.0,
-"over2_m": 4,
-"worst_lat": 34.34518,
-"worst_lon": 35.85066
 },
 {
 "way": 323610799,
@@ -2854,30 +2854,6 @@
 "over2_m": 4,
 "worst_lat": 34.38108,
 "worst_lon": 35.84368
-},
-{
-"way": 443973207,
-"name": "Rue Al Arz",
-"class": "primary",
-"km": 0.07,
-"kink8_max": 2.2,
-"wave30_max": 3.8,
-"holes_pct": 0.0,
-"over2_m": 2,
-"worst_lat": 34.30928,
-"worst_lon": 35.7728
-},
-{
-"way": 443973208,
-"name": "Rue Al Arz",
-"class": "primary",
-"km": 0.07,
-"kink8_max": 2.2,
-"wave30_max": 1.8,
-"holes_pct": 0.0,
-"over2_m": 4,
-"worst_lat": 34.3095,
-"worst_lon": 35.77271
 },
 {
 "way": 701837056,
@@ -3012,16 +2988,16 @@
 "worst_lon": 35.78933
 },
 {
-"way": 442416848,
-"name": "Rue Tripoli",
-"class": "primary",
-"km": 0.04,
+"way": 452329470,
+"name": "",
+"class": "primary_link",
+"km": 0.06,
 "kink8_max": 2.1,
-"wave30_max": 1.8,
+"wave30_max": 4.0,
 "holes_pct": 0.0,
 "over2_m": 2,
-"worst_lat": 34.30374,
-"worst_lon": 35.85203
+"worst_lat": 34.29833,
+"worst_lon": 35.84505
 },
 {
 "way": 1226667937,
@@ -3228,6 +3204,18 @@
 "worst_lon": 35.81111
 },
 {
+"way": 443973207,
+"name": "Rue Al Arz",
+"class": "primary",
+"km": 0.07,
+"kink8_max": 2.0,
+"wave30_max": 3.6,
+"holes_pct": 0.0,
+"over2_m": 0,
+"worst_lat": 34.30928,
+"worst_lon": 35.7728
+},
+{
 "way": 701837061,
 "name": "",
 "class": "residential",
@@ -3336,6 +3324,18 @@
 "worst_lon": 35.82448
 },
 {
+"way": 694240373,
+"name": "",
+"class": "secondary",
+"km": 0.44,
+"kink8_max": 2.0,
+"wave30_max": 2.2,
+"holes_pct": 0.0,
+"over2_m": 2,
+"worst_lat": 34.34511,
+"worst_lon": 35.85058
+},
+{
 "way": 685669888,
 "name": "",
 "class": "service",
@@ -3437,11 +3437,11 @@
 "class": "secondary",
 "km": 0.07,
 "kink8_max": 1.9,
-"wave30_max": 2.0,
+"wave30_max": 2.7,
 "holes_pct": 0.0,
 "over2_m": 0,
-"worst_lat": 34.29852,
-"worst_lon": 35.84509
+"worst_lat": 34.29842,
+"worst_lon": 35.84526
 },
 {
 "way": 442417860,
@@ -3478,18 +3478,6 @@
 "over2_m": 0,
 "worst_lat": 34.28322,
 "worst_lon": 35.8938
-},
-{
-"way": 694240373,
-"name": "",
-"class": "secondary",
-"km": 0.44,
-"kink8_max": 1.9,
-"wave30_max": 1.8,
-"holes_pct": 0.0,
-"over2_m": 0,
-"worst_lat": 34.34502,
-"worst_lon": 35.8506
 },
 {
 "way": 843488164,
@@ -3598,18 +3586,6 @@
 "over2_m": 0,
 "worst_lat": 34.2967,
 "worst_lon": 35.83215
-},
-{
-"way": 452329469,
-"name": "",
-"class": "primary_link",
-"km": 0.04,
-"kink8_max": 1.8,
-"wave30_max": 1.6,
-"holes_pct": 0.0,
-"over2_m": 0,
-"worst_lat": 34.29846,
-"worst_lon": 35.84531
 },
 {
 "way": 442035991,
@@ -4008,6 +3984,18 @@
 "worst_lon": 35.78095
 },
 {
+"way": 441397577,
+"name": "",
+"class": "residential",
+"km": 0.06,
+"kink8_max": 1.6,
+"wave30_max": 1.2,
+"holes_pct": 0.0,
+"over2_m": 0,
+"worst_lat": 34.29726,
+"worst_lon": 35.8324
+},
+{
 "way": 441576141,
 "name": "",
 "class": "residential",
@@ -4078,6 +4066,18 @@
 "over2_m": 0,
 "worst_lat": 34.30036,
 "worst_lon": 35.84068
+},
+{
+"way": 442416848,
+"name": "Rue Tripoli",
+"class": "primary",
+"km": 0.04,
+"kink8_max": 1.6,
+"wave30_max": 1.6,
+"holes_pct": 0.0,
+"over2_m": 0,
+"worst_lat": 34.30374,
+"worst_lon": 35.85203
 },
 {
 "way": 442035989,
@@ -4344,6 +4344,30 @@
 "worst_lon": 35.82055
 },
 {
+"way": 441397576,
+"name": "",
+"class": "residential",
+"km": 0.25,
+"kink8_max": 1.5,
+"wave30_max": 1.6,
+"holes_pct": 0.0,
+"over2_m": 0,
+"worst_lat": 34.29725,
+"worst_lon": 35.83193
+},
+{
+"way": 452329469,
+"name": "",
+"class": "primary_link",
+"km": 0.04,
+"kink8_max": 1.5,
+"wave30_max": 1.5,
+"holes_pct": 0.0,
+"over2_m": 0,
+"worst_lat": 34.29846,
+"worst_lon": 35.84531
+},
+{
 "way": 703393122,
 "name": "",
 "class": "residential",
@@ -4366,6 +4390,18 @@
 "over2_m": 0,
 "worst_lat": 34.34974,
 "worst_lon": 35.83439
+},
+{
+"way": 701828902,
+"name": "",
+"class": "primary",
+"km": 0.21,
+"kink8_max": 1.5,
+"wave30_max": 1.8,
+"holes_pct": 0.0,
+"over2_m": 0,
+"worst_lat": 34.34892,
+"worst_lon": 35.83553
 },
 {
 "way": 702356578,
@@ -4498,6 +4534,18 @@
 "over2_m": 0,
 "worst_lat": 34.31163,
 "worst_lon": 35.76857
+},
+{
+"way": 443973217,
+"name": "",
+"class": "secondary",
+"km": 0.04,
+"kink8_max": 1.4,
+"wave30_max": 2.4,
+"holes_pct": 0.0,
+"over2_m": 0,
+"worst_lat": 34.30971,
+"worst_lon": 35.77297
 },
 {
 "way": 441111966,
@@ -4637,11 +4685,23 @@
 "class": "secondary",
 "km": 0.08,
 "kink8_max": 1.4,
-"wave30_max": 2.6,
+"wave30_max": 2.5,
 "holes_pct": 0.0,
 "over2_m": 0,
-"worst_lat": 34.29838,
-"worst_lon": 35.84518
+"worst_lat": 34.29833,
+"worst_lon": 35.84536
+},
+{
+"way": 709676988,
+"name": "Al Arz Street",
+"class": "primary",
+"km": 0.09,
+"kink8_max": 1.4,
+"wave30_max": 2.3,
+"holes_pct": 0.0,
+"over2_m": 0,
+"worst_lat": 34.29903,
+"worst_lon": 35.84555
 },
 {
 "way": 1226667935,
@@ -4714,6 +4774,18 @@
 "over2_m": 0,
 "worst_lat": 34.32804,
 "worst_lon": 35.81233
+},
+{
+"way": 701828903,
+"name": "",
+"class": "primary",
+"km": 0.2,
+"kink8_max": 1.4,
+"wave30_max": 1.0,
+"holes_pct": 0.0,
+"over2_m": 0,
+"worst_lat": 34.34894,
+"worst_lon": 35.83554
 },
 {
 "way": 360034083,
@@ -4836,28 +4908,16 @@
 "worst_lon": 35.81074
 },
 {
-"way": 443973210,
-"name": "Rue Al Arz",
-"class": "primary",
-"km": 0.04,
-"kink8_max": 1.3,
-"wave30_max": 1.6,
-"holes_pct": 0.0,
-"over2_m": 0,
-"worst_lat": 34.30961,
-"worst_lon": 35.77251
-},
-{
-"way": 443973217,
+"way": 443974024,
 "name": "",
-"class": "secondary",
-"km": 0.04,
+"class": "unclassified",
+"km": 0.28,
 "kink8_max": 1.3,
-"wave30_max": 1.9,
+"wave30_max": 1.3,
 "holes_pct": 0.0,
 "over2_m": 0,
-"worst_lat": 34.30971,
-"worst_lon": 35.77297
+"worst_lat": 34.3093,
+"worst_lon": 35.77273
 },
 {
 "way": 452552950,
@@ -4884,6 +4944,18 @@
 "worst_lon": 35.8188
 },
 {
+"way": 709624149,
+"name": "",
+"class": "secondary",
+"km": 0.08,
+"kink8_max": 1.3,
+"wave30_max": 1.0,
+"holes_pct": 0.0,
+"over2_m": 0,
+"worst_lat": 34.30384,
+"worst_lon": 35.81111
+},
+{
 "way": 709624152,
 "name": "",
 "class": "secondary",
@@ -4906,18 +4978,6 @@
 "over2_m": 0,
 "worst_lat": 34.29927,
 "worst_lon": 35.81685
-},
-{
-"way": 441397577,
-"name": "",
-"class": "residential",
-"km": 0.06,
-"kink8_max": 1.3,
-"wave30_max": 1.3,
-"holes_pct": 0.0,
-"over2_m": 0,
-"worst_lat": 34.29726,
-"worst_lon": 35.8324
 },
 {
 "way": 441411129,
@@ -4954,18 +5014,6 @@
 "over2_m": 0,
 "worst_lat": 34.29764,
 "worst_lon": 35.84097
-},
-{
-"way": 709676988,
-"name": "Al Arz Street",
-"class": "primary",
-"km": 0.09,
-"kink8_max": 1.3,
-"wave30_max": 1.7,
-"holes_pct": 0.0,
-"over2_m": 0,
-"worst_lat": 34.29903,
-"worst_lon": 35.84555
 },
 {
 "way": 442038076,
@@ -5052,16 +5100,28 @@
 "worst_lon": 35.84127
 },
 {
-"way": 694237745,
+"way": 452554533,
 "name": "",
-"class": "secondary",
-"km": 0.13,
+"class": "unclassified",
+"km": 0.09,
 "kink8_max": 1.3,
-"wave30_max": 2.0,
+"wave30_max": 1.7,
 "holes_pct": 0.0,
 "over2_m": 0,
-"worst_lat": 34.34685,
-"worst_lon": 35.83802
+"worst_lat": 34.34903,
+"worst_lon": 35.8355
+},
+{
+"way": 701828904,
+"name": "",
+"class": "primary",
+"km": 0.2,
+"kink8_max": 1.3,
+"wave30_max": 1.4,
+"holes_pct": 0.0,
+"over2_m": 0,
+"worst_lat": 34.34853,
+"worst_lon": 35.836
 },
 {
 "way": 843486326,
@@ -5208,6 +5268,18 @@
 "worst_lon": 35.79669
 },
 {
+"way": 443973210,
+"name": "Rue Al Arz",
+"class": "primary",
+"km": 0.04,
+"kink8_max": 1.2,
+"wave30_max": 1.7,
+"holes_pct": 0.0,
+"over2_m": 0,
+"worst_lat": 34.30961,
+"worst_lon": 35.77251
+},
+{
 "way": 387141686,
 "name": "",
 "class": "secondary",
@@ -5220,16 +5292,16 @@
 "worst_lon": 35.84928
 },
 {
-"way": 287470187,
+"way": 442413908,
 "name": "Rue Al Arz",
 "class": "primary",
-"km": 0.07,
+"km": 0.09,
 "kink8_max": 1.2,
-"wave30_max": 1.7,
+"wave30_max": 1.3,
 "holes_pct": 0.0,
 "over2_m": 0,
-"worst_lat": 34.30373,
-"worst_lon": 35.85232
+"worst_lat": 34.30342,
+"worst_lon": 35.8513
 },
 {
 "way": 442417866,
@@ -5436,18 +5508,6 @@
 "worst_lon": 35.80258
 },
 {
-"way": 443973211,
-"name": "Rue Al Arz",
-"class": "primary",
-"km": 0.04,
-"kink8_max": 1.1,
-"wave30_max": 1.8,
-"holes_pct": 0.0,
-"over2_m": 0,
-"worst_lat": 34.30964,
-"worst_lon": 35.77259
-},
-{
 "way": 452552951,
 "name": "",
 "class": "residential",
@@ -5458,18 +5518,6 @@
 "over2_m": 0,
 "worst_lat": 34.30831,
 "worst_lon": 35.77422
-},
-{
-"way": 709624149,
-"name": "",
-"class": "secondary",
-"km": 0.08,
-"kink8_max": 1.1,
-"wave30_max": 1.0,
-"holes_pct": 0.0,
-"over2_m": 0,
-"worst_lat": 34.30384,
-"worst_lon": 35.81115
 },
 {
 "way": 712280093,
@@ -5518,18 +5566,6 @@
 "over2_m": 0,
 "worst_lat": 34.3004,
 "worst_lon": 35.84063
-},
-{
-"way": 442413908,
-"name": "Rue Al Arz",
-"class": "primary",
-"km": 0.09,
-"kink8_max": 1.1,
-"wave30_max": 1.3,
-"holes_pct": 0.0,
-"over2_m": 0,
-"worst_lat": 34.30342,
-"worst_lon": 35.8513
 },
 {
 "way": 705440232,
@@ -5592,16 +5628,16 @@
 "worst_lon": 35.8265
 },
 {
-"way": 701828903,
+"way": 452554534,
 "name": "",
-"class": "primary",
-"km": 0.2,
+"class": "primary_link",
+"km": 0.06,
 "kink8_max": 1.1,
-"wave30_max": 1.7,
+"wave30_max": 2.1,
 "holes_pct": 0.0,
 "over2_m": 0,
-"worst_lat": 34.34893,
-"worst_lon": 35.83555
+"worst_lat": 34.34974,
+"worst_lon": 35.83463
 },
 {
 "way": 860238717,
@@ -5614,18 +5650,6 @@
 "over2_m": 0,
 "worst_lat": 34.34118,
 "worst_lon": 35.85218
-},
-{
-"way": 694237743,
-"name": "",
-"class": "secondary",
-"km": 0.13,
-"kink8_max": 1.1,
-"wave30_max": 1.1,
-"holes_pct": 0.0,
-"over2_m": 0,
-"worst_lat": 34.34675,
-"worst_lon": 35.83807
 },
 {
 "way": 843486481,
@@ -5832,30 +5856,6 @@
 "worst_lon": 35.80706
 },
 {
-"way": 709624148,
-"name": "",
-"class": "secondary",
-"km": 0.08,
-"kink8_max": 1.0,
-"wave30_max": 1.5,
-"holes_pct": 0.0,
-"over2_m": 0,
-"worst_lat": 34.30387,
-"worst_lon": 35.81127
-},
-{
-"way": 709624150,
-"name": "",
-"class": "secondary",
-"km": 0.13,
-"kink8_max": 1.0,
-"wave30_max": 2.7,
-"holes_pct": 0.0,
-"over2_m": 0,
-"worst_lat": 34.30406,
-"worst_lon": 35.81101
-},
-{
 "way": 712280094,
 "name": "",
 "class": "tertiary",
@@ -5940,18 +5940,6 @@
 "worst_lon": 35.81342
 },
 {
-"way": 701828902,
-"name": "",
-"class": "primary",
-"km": 0.21,
-"kink8_max": 1.0,
-"wave30_max": 1.3,
-"holes_pct": 0.0,
-"over2_m": 0,
-"worst_lat": 34.34984,
-"worst_lon": 35.83485
-},
-{
 "way": 685666467,
 "name": "",
 "class": "residential",
@@ -5988,16 +5976,52 @@
 "worst_lon": 35.84141
 },
 {
-"way": 452554533,
+"way": 694237743,
 "name": "",
-"class": "unclassified",
-"km": 0.09,
+"class": "secondary",
+"km": 0.13,
 "kink8_max": 1.0,
-"wave30_max": 1.4,
+"wave30_max": 0.6,
 "holes_pct": 0.0,
 "over2_m": 0,
-"worst_lat": 34.34883,
-"worst_lon": 35.83583
+"worst_lat": 34.34675,
+"worst_lon": 35.838
+},
+{
+"way": 694237745,
+"name": "",
+"class": "secondary",
+"km": 0.13,
+"kink8_max": 1.0,
+"wave30_max": 1.8,
+"holes_pct": 0.0,
+"over2_m": 0,
+"worst_lat": 34.34685,
+"worst_lon": 35.83802
+},
+{
+"way": 694240376,
+"name": "",
+"class": "primary",
+"km": 0.22,
+"kink8_max": 1.0,
+"wave30_max": 1.0,
+"holes_pct": 0.0,
+"over2_m": 0,
+"worst_lat": 34.34704,
+"worst_lon": 35.83759
+},
+{
+"way": 694240378,
+"name": "",
+"class": "primary",
+"km": 0.22,
+"kink8_max": 1.0,
+"wave30_max": 0.9,
+"holes_pct": 0.0,
+"over2_m": 0,
+"worst_lat": 34.34664,
+"worst_lon": 35.8379
 },
 {
 "way": 701926039,
@@ -6132,16 +6156,16 @@
 "worst_lon": 35.8001
 },
 {
-"way": 709860078,
-"name": "",
-"class": "residential",
-"km": 0.14,
+"way": 443973211,
+"name": "Rue Al Arz",
+"class": "primary",
+"km": 0.04,
 "kink8_max": 0.9,
-"wave30_max": 1.0,
+"wave30_max": 1.8,
 "holes_pct": 0.0,
 "over2_m": 0,
-"worst_lat": 34.30416,
-"worst_lon": 35.81079
+"worst_lat": 34.30965,
+"worst_lon": 35.77258
 },
 {
 "way": 701840334,
@@ -6216,6 +6240,30 @@
 "worst_lon": 35.8132
 },
 {
+"way": 709624148,
+"name": "",
+"class": "secondary",
+"km": 0.08,
+"kink8_max": 0.9,
+"wave30_max": 1.4,
+"holes_pct": 0.0,
+"over2_m": 0,
+"worst_lat": 34.30391,
+"worst_lon": 35.8112
+},
+{
+"way": 709624150,
+"name": "",
+"class": "secondary",
+"km": 0.13,
+"kink8_max": 0.9,
+"wave30_max": 3.1,
+"holes_pct": 0.0,
+"over2_m": 0,
+"worst_lat": 34.3038,
+"worst_lon": 35.81114
+},
+{
 "way": 1216674633,
 "name": "",
 "class": "residential",
@@ -6226,18 +6274,6 @@
 "over2_m": 0,
 "worst_lat": 34.29933,
 "worst_lon": 35.81306
-},
-{
-"way": 441575259,
-"name": "",
-"class": "residential",
-"km": 0.18,
-"kink8_max": 0.9,
-"wave30_max": 1.0,
-"holes_pct": 0.0,
-"over2_m": 0,
-"worst_lat": 34.29734,
-"worst_lon": 35.83209
 },
 {
 "way": 1306058556,
@@ -6382,18 +6418,6 @@
 "over2_m": 0,
 "worst_lat": 34.34311,
 "worst_lon": 35.82577
-},
-{
-"way": 452554534,
-"name": "",
-"class": "primary_link",
-"km": 0.06,
-"kink8_max": 0.9,
-"wave30_max": 1.2,
-"holes_pct": 0.0,
-"over2_m": 0,
-"worst_lat": 34.34946,
-"worst_lon": 35.83493
 },
 {
 "way": 360014209,
@@ -6576,6 +6600,18 @@
 "worst_lon": 35.81033
 },
 {
+"way": 709860078,
+"name": "",
+"class": "residential",
+"km": 0.14,
+"kink8_max": 0.8,
+"wave30_max": 0.9,
+"holes_pct": 0.0,
+"over2_m": 0,
+"worst_lat": 34.30416,
+"worst_lon": 35.81079
+},
+{
 "way": 701656000,
 "name": "",
 "class": "unclassified",
@@ -6636,30 +6672,6 @@
 "worst_lon": 35.81492
 },
 {
-"way": 712280095,
-"name": "",
-"class": "secondary",
-"km": 0.04,
-"kink8_max": 0.8,
-"wave30_max": 1.2,
-"holes_pct": 0.0,
-"over2_m": 0,
-"worst_lat": 34.30074,
-"worst_lon": 35.81882
-},
-{
-"way": 441397576,
-"name": "",
-"class": "residential",
-"km": 0.25,
-"kink8_max": 0.8,
-"wave30_max": 1.4,
-"holes_pct": 0.0,
-"over2_m": 0,
-"worst_lat": 34.29724,
-"worst_lon": 35.83194
-},
-{
 "way": 1069977247,
 "name": "",
 "class": "service",
@@ -6670,6 +6682,18 @@
 "over2_m": 0,
 "worst_lat": 34.29744,
 "worst_lon": 35.83
+},
+{
+"way": 287470187,
+"name": "Rue Al Arz",
+"class": "primary",
+"km": 0.07,
+"kink8_max": 0.8,
+"wave30_max": 1.4,
+"holes_pct": 0.0,
+"over2_m": 0,
+"worst_lat": 34.30373,
+"worst_lon": 35.85234
 },
 {
 "way": 442038067,
@@ -6816,16 +6840,16 @@
 "worst_lon": 35.83448
 },
 {
-"way": 701828904,
+"way": 700330862,
 "name": "",
 "class": "primary",
-"km": 0.2,
+"km": 0.23,
 "kink8_max": 0.8,
-"wave30_max": 1.3,
+"wave30_max": 0.6,
 "holes_pct": 0.0,
 "over2_m": 0,
-"worst_lat": 34.34869,
-"worst_lon": 35.83581
+"worst_lat": 34.33684,
+"worst_lon": 35.84022
 },
 {
 "way": 360014214,
@@ -6838,6 +6862,18 @@
 "over2_m": 0,
 "worst_lat": 34.35341,
 "worst_lon": 35.84784
+},
+{
+"way": 685669244,
+"name": "",
+"class": "unclassified",
+"km": 0.52,
+"kink8_max": 0.8,
+"wave30_max": 1.4,
+"holes_pct": 0.0,
+"over2_m": 0,
+"worst_lat": 34.35744,
+"worst_lon": 35.84565
 },
 {
 "way": 685669889,
@@ -6909,7 +6945,7 @@
 "holes_pct": 0.0,
 "over2_m": 0,
 "worst_lat": 34.36861,
-"worst_lon": 35.84339
+"worst_lon": 35.84341
 },
 {
 "way": 700825662,
@@ -6946,18 +6982,6 @@
 "over2_m": 0,
 "worst_lat": 34.38083,
 "worst_lon": 35.85034
-},
-{
-"way": 443974024,
-"name": "",
-"class": "unclassified",
-"km": 0.28,
-"kink8_max": 0.7,
-"wave30_max": 1.2,
-"holes_pct": 0.0,
-"over2_m": 0,
-"worst_lat": 34.3093,
-"worst_lon": 35.77273
 },
 {
 "way": 685672073,
@@ -7020,30 +7044,6 @@
 "worst_lon": 35.81618
 },
 {
-"way": 441394972,
-"name": "",
-"class": "secondary_link",
-"km": 0.04,
-"kink8_max": 0.7,
-"wave30_max": 0.0,
-"holes_pct": 0.0,
-"over2_m": 0,
-"worst_lat": 34.30101,
-"worst_lon": 35.81878
-},
-{
-"way": 712280096,
-"name": "",
-"class": "secondary",
-"km": 0.04,
-"kink8_max": 0.7,
-"wave30_max": 1.3,
-"holes_pct": 0.0,
-"over2_m": 0,
-"worst_lat": 34.30063,
-"worst_lon": 35.81897
-},
-{
 "way": 1301155862,
 "name": "",
 "class": "service",
@@ -7054,6 +7054,18 @@
 "over2_m": 0,
 "worst_lat": 34.29764,
 "worst_lon": 35.82514
+},
+{
+"way": 441575259,
+"name": "",
+"class": "residential",
+"km": 0.18,
+"kink8_max": 0.7,
+"wave30_max": 0.8,
+"holes_pct": 0.0,
+"over2_m": 0,
+"worst_lat": 34.29734,
+"worst_lon": 35.83209
 },
 {
 "way": 452329286,
@@ -7248,18 +7260,6 @@
 "worst_lon": 35.8322
 },
 {
-"way": 685669244,
-"name": "",
-"class": "unclassified",
-"km": 0.52,
-"kink8_max": 0.7,
-"wave30_max": 1.4,
-"holes_pct": 0.0,
-"over2_m": 0,
-"worst_lat": 34.35724,
-"worst_lon": 35.84717
-},
-{
 "way": 843486497,
 "name": "",
 "class": "residential",
@@ -7452,6 +7452,18 @@
 "worst_lon": 35.81609
 },
 {
+"way": 441394972,
+"name": "",
+"class": "secondary_link",
+"km": 0.04,
+"kink8_max": 0.6,
+"wave30_max": 0.0,
+"holes_pct": 0.0,
+"over2_m": 0,
+"worst_lat": 34.30101,
+"worst_lon": 35.81878
+},
+{
 "way": 441599183,
 "name": "",
 "class": "residential",
@@ -7498,18 +7510,6 @@
 "over2_m": 0,
 "worst_lat": 34.29768,
 "worst_lon": 35.85496
-},
-{
-"way": 442414859,
-"name": "Rue Al Arz",
-"class": "primary",
-"km": 0.07,
-"kink8_max": 0.6,
-"wave30_max": 0.7,
-"holes_pct": 0.0,
-"over2_m": 0,
-"worst_lat": 34.30361,
-"worst_lon": 35.85227
 },
 {
 "way": 860239443,
@@ -7656,6 +7656,18 @@
 "worst_lon": 35.83961
 },
 {
+"way": 700316795,
+"name": "",
+"class": "primary",
+"km": 0.21,
+"kink8_max": 0.6,
+"wave30_max": 0.6,
+"holes_pct": 0.0,
+"over2_m": 0,
+"worst_lat": 34.32974,
+"worst_lon": 35.84331
+},
+{
 "way": 700330857,
 "name": "",
 "class": "residential",
@@ -7702,18 +7714,6 @@
 "over2_m": 0,
 "worst_lat": 34.34791,
 "worst_lon": 35.83729
-},
-{
-"way": 694240378,
-"name": "",
-"class": "primary",
-"km": 0.22,
-"kink8_max": 0.6,
-"wave30_max": 0.9,
-"holes_pct": 0.0,
-"over2_m": 0,
-"worst_lat": 34.34679,
-"worst_lon": 35.83784
 },
 {
 "way": 701926041,
@@ -7980,6 +7980,18 @@
 "worst_lon": 35.81769
 },
 {
+"way": 712280095,
+"name": "",
+"class": "secondary",
+"km": 0.04,
+"kink8_max": 0.5,
+"wave30_max": 1.1,
+"holes_pct": 0.0,
+"over2_m": 0,
+"worst_lat": 34.30076,
+"worst_lon": 35.81878
+},
+{
 "way": 441575260,
 "name": "",
 "class": "residential",
@@ -8045,23 +8057,11 @@
 "class": "primary",
 "km": 0.15,
 "kink8_max": 0.5,
-"wave30_max": 0.7,
+"wave30_max": 0.6,
 "holes_pct": 0.0,
 "over2_m": 0,
 "worst_lat": 34.2837,
 "worst_lon": 35.88801
-},
-{
-"way": 709927314,
-"name": "",
-"class": "secondary",
-"km": 0.07,
-"kink8_max": 0.5,
-"wave30_max": 0.6,
-"holes_pct": 0.0,
-"over2_m": 0,
-"worst_lat": 34.32477,
-"worst_lon": 35.80739
 },
 {
 "way": 707578490,
@@ -8086,18 +8086,6 @@
 "over2_m": 0,
 "worst_lat": 34.32639,
 "worst_lon": 35.81225
-},
-{
-"way": 700316795,
-"name": "",
-"class": "primary",
-"km": 0.21,
-"kink8_max": 0.5,
-"wave30_max": 0.7,
-"holes_pct": 0.0,
-"over2_m": 0,
-"worst_lat": 34.33044,
-"worst_lon": 35.84291
 },
 {
 "way": 1292033953,
@@ -8136,28 +8124,16 @@
 "worst_lon": 35.83785
 },
 {
-"way": 441422880,
+"way": 685665886,
 "name": "",
-"class": "residential",
-"km": 0.43,
+"class": "primary_link",
+"km": 0.06,
 "kink8_max": 0.5,
 "wave30_max": 0.6,
 "holes_pct": 0.0,
 "over2_m": 0,
-"worst_lat": 34.33745,
-"worst_lon": 35.84027
-},
-{
-"way": 694240376,
-"name": "",
-"class": "primary",
-"km": 0.22,
-"kink8_max": 0.5,
-"wave30_max": 0.8,
-"holes_pct": 0.0,
-"over2_m": 0,
-"worst_lat": 34.34731,
-"worst_lon": 35.83734
+"worst_lat": 34.33661,
+"worst_lon": 35.84006
 },
 {
 "way": 685667015,
@@ -8280,6 +8256,18 @@
 "worst_lon": 35.81409
 },
 {
+"way": 712280096,
+"name": "",
+"class": "secondary",
+"km": 0.04,
+"kink8_max": 0.4,
+"wave30_max": 1.2,
+"holes_pct": 0.0,
+"over2_m": 0,
+"worst_lat": 34.30072,
+"worst_lon": 35.81876
+},
+{
 "way": 441599184,
 "name": "",
 "class": "residential",
@@ -8290,18 +8278,6 @@
 "over2_m": 0,
 "worst_lat": 34.29707,
 "worst_lon": 35.82451
-},
-{
-"way": 709624143,
-"name": "Al Arz Street",
-"class": "primary",
-"km": 0.14,
-"kink8_max": 0.4,
-"wave30_max": 0.7,
-"holes_pct": 0.0,
-"over2_m": 0,
-"worst_lat": 34.29736,
-"worst_lon": 35.83403
 },
 {
 "way": 441599186,
@@ -8328,6 +8304,18 @@
 "worst_lon": 35.82495
 },
 {
+"way": 442414859,
+"name": "Rue Al Arz",
+"class": "primary",
+"km": 0.07,
+"kink8_max": 0.4,
+"wave30_max": 0.5,
+"holes_pct": 0.0,
+"over2_m": 0,
+"worst_lat": 34.30361,
+"worst_lon": 35.85227
+},
+{
 "way": 703434939,
 "name": "",
 "class": "unclassified",
@@ -8350,18 +8338,6 @@
 "over2_m": 0,
 "worst_lat": 34.31938,
 "worst_lon": 35.80456
-},
-{
-"way": 709927317,
-"name": "",
-"class": "secondary",
-"km": 0.07,
-"kink8_max": 0.4,
-"wave30_max": 0.2,
-"holes_pct": 0.0,
-"over2_m": 0,
-"worst_lat": 34.32483,
-"worst_lon": 35.80735
 },
 {
 "way": 24963761,
@@ -8412,6 +8388,18 @@
 "worst_lon": 35.81135
 },
 {
+"way": 700316796,
+"name": "",
+"class": "primary",
+"km": 0.21,
+"kink8_max": 0.4,
+"wave30_max": 0.4,
+"holes_pct": 0.0,
+"over2_m": 0,
+"worst_lat": 34.32981,
+"worst_lon": 35.84337
+},
+{
 "way": 705640759,
 "name": "",
 "class": "residential",
@@ -8460,16 +8448,16 @@
 "worst_lon": 35.83358
 },
 {
-"way": 685665886,
+"way": 441422880,
 "name": "",
-"class": "primary_link",
-"km": 0.06,
+"class": "residential",
+"km": 0.43,
 "kink8_max": 0.4,
 "wave30_max": 0.4,
 "holes_pct": 0.0,
 "over2_m": 0,
-"worst_lat": 34.33663,
-"worst_lon": 35.84006
+"worst_lat": 34.33746,
+"worst_lon": 35.84028
 },
 {
 "way": 700330864,
@@ -8652,6 +8640,30 @@
 "worst_lon": 35.81899
 },
 {
+"way": 709624143,
+"name": "Al Arz Street",
+"class": "primary",
+"km": 0.14,
+"kink8_max": 0.3,
+"wave30_max": 0.7,
+"holes_pct": 0.0,
+"over2_m": 0,
+"worst_lat": 34.29736,
+"worst_lon": 35.83382
+},
+{
+"way": 709624144,
+"name": "Al Arz Street",
+"class": "primary",
+"km": 0.14,
+"kink8_max": 0.3,
+"wave30_max": 0.4,
+"holes_pct": 0.0,
+"over2_m": 0,
+"worst_lat": 34.29728,
+"worst_lon": 35.83406
+},
+{
 "way": 1301155863,
 "name": "",
 "class": "service",
@@ -8784,18 +8796,6 @@
 "worst_lon": 35.81305
 },
 {
-"way": 700316796,
-"name": "",
-"class": "primary",
-"km": 0.21,
-"kink8_max": 0.3,
-"wave30_max": 0.4,
-"holes_pct": 0.0,
-"over2_m": 0,
-"worst_lat": 34.32907,
-"worst_lon": 35.8438
-},
-{
 "way": 860239036,
 "name": "",
 "class": "residential",
@@ -8844,28 +8844,16 @@
 "worst_lon": 35.84104
 },
 {
-"way": 700330862,
-"name": "",
-"class": "primary",
-"km": 0.23,
-"kink8_max": 0.3,
-"wave30_max": 0.3,
-"holes_pct": 0.0,
-"over2_m": 0,
-"worst_lat": 34.33684,
-"worst_lon": 35.84022
-},
-{
 "way": 700330863,
 "name": "",
 "class": "primary",
 "km": 0.23,
 "kink8_max": 0.3,
-"wave30_max": 0.3,
+"wave30_max": 0.4,
 "holes_pct": 0.0,
 "over2_m": 0,
-"worst_lat": 34.33741,
-"worst_lon": 35.84022
+"worst_lat": 34.33668,
+"worst_lon": 35.84035
 },
 {
 "way": 858256467,
@@ -9036,6 +9024,18 @@
 "worst_lon": 35.79881
 },
 {
+"way": 1043703615,
+"name": "",
+"class": "service",
+"km": 0.08,
+"kink8_max": 0.2,
+"wave30_max": 0.2,
+"holes_pct": 0.0,
+"over2_m": 0,
+"worst_lat": 34.30051,
+"worst_lon": 35.78627
+},
+{
 "way": 700340191,
 "name": "",
 "class": "residential",
@@ -9096,18 +9096,6 @@
 "worst_lon": 35.82699
 },
 {
-"way": 709624144,
-"name": "Al Arz Street",
-"class": "primary",
-"km": 0.14,
-"kink8_max": 0.2,
-"wave30_max": 0.5,
-"holes_pct": 0.0,
-"over2_m": 0,
-"worst_lat": 34.29731,
-"worst_lon": 35.83437
-},
-{
 "way": 793750347,
 "name": "",
 "class": "residential",
@@ -9166,6 +9154,30 @@
 "over2_m": 0,
 "worst_lat": 34.32236,
 "worst_lon": 35.79691
+},
+{
+"way": 709927314,
+"name": "",
+"class": "secondary",
+"km": 0.07,
+"kink8_max": 0.2,
+"wave30_max": 0.4,
+"holes_pct": 0.0,
+"over2_m": 0,
+"worst_lat": 34.32477,
+"worst_lon": 35.80737
+},
+{
+"way": 709927317,
+"name": "",
+"class": "secondary",
+"km": 0.07,
+"kink8_max": 0.2,
+"wave30_max": 0.4,
+"holes_pct": 0.0,
+"over2_m": 0,
+"worst_lat": 34.32495,
+"worst_lon": 35.80761
 },
 {
 "way": 701094693,
@@ -9262,18 +9274,6 @@
 "over2_m": 0,
 "worst_lat": 34.3013,
 "worst_lon": 35.80826
-},
-{
-"way": 1043703615,
-"name": "",
-"class": "service",
-"km": 0.08,
-"kink8_max": 0.1,
-"wave30_max": 0.3,
-"holes_pct": 0.0,
-"over2_m": 0,
-"worst_lat": 34.30051,
-"worst_lon": 35.78627
 },
 {
 "way": 441132341,
