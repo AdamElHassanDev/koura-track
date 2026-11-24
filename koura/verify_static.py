@@ -20,6 +20,8 @@ from verify_network import build_zone, verify_network
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
 FORK = ROOT / "openlaps"
+# Stage 1 held the in-game target with the WP6 profile at this p95 estimate.
+DRAW_CALLS_P95_LIMIT = 853
 NAMES = {
     1: "Aerial imagery",
     2: "KN5 structure",
@@ -180,7 +182,7 @@ def verify(stage, output, name, build_log, report, baseline, config):
 
     inspect_json = evidence / "kn5.json"
     ui_path = track / "ui/ui_track.json"
-    lod_required = options.get("terrain_lod_required", False)
+    lod_required = options.get("terrain_lod_required", not baseline and stage in {"S1", "S2", "S3"})
     rc, _, raw = tool((3, 4, 5, 6, 11), FORK / "tools/kn5_inspect.py", [kn5, "--json", inspect_json])
     if rc == 0:
         inspection = read_json(inspect_json)
@@ -283,7 +285,7 @@ def verify(stage, output, name, build_log, report, baseline, config):
         else:
             add(9, status, stats, raw, geo_path, sidecar, track / "data/traffic.json")
 
-    draw_cap = options.get("draw_calls_p95")
+    draw_cap = options.get("draw_calls_p95", None if baseline else DRAW_CALLS_P95_LIMIT)
     rc, captured, raw = tool(10, FORK / "tools/rendimiento_ac.py", [kn5, "--grupos"], hard=draw_cap is not None)
     if rc == 0:
         calls = re.search(r"a la vista:\s*([\d,]+) llamadas \(p95 ([\d,]+)\)", captured)

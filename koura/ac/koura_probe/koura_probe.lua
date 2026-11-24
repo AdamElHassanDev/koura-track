@@ -13,6 +13,7 @@ local SHOT_HOLD_S = 0.5
 local state = 'loading'
 local points, results, index, wait, hold = nil, {}, 1, nil, nil
 local options = { quit = false, screenshots_every = 0 }
+local camera
 
 local function save(name, value)
   io.save(dir .. '/' .. name, JSON.stringify(value))
@@ -20,6 +21,21 @@ end
 
 local function vec(t)
   return vec3(t[1], t[2], t[3])
+end
+
+local function set_camera(view)
+  if view == nil then
+    if camera then camera:dispose() end
+    camera = nil
+    return
+  end
+  camera = camera or ac.grabCamera('Koura terrain probe')
+  if camera == nil then return end
+  local pos = vec(view.pos)
+  camera.transform.position:set(pos)
+  camera.transform.look:set((vec(view.target) - pos):normalize())
+  camera.transform.up:set(0, 1, 0)
+  camera.fov = view.fov or 52
 end
 
 local function load_points()
@@ -45,8 +61,21 @@ local function record(p)
   end
   local above = car.position + vec3(0, 20, 0)
   local hit = physics.raycastTrack(above, vec3(0, -1, 0), 60)
+  local sim = ac.getSim()
+  local view_pos = sim.cameraPosition
+  local terrain_rays = {}
+  for _, ray in ipairs(p.terrain_rays or {}) do
+    local origin = vec(ray.pos)
+    local distance = physics.raycastTrack(origin, vec3(0, -1, 0), 60)
+    terrain_rays[#terrain_rays + 1] = {
+      name = ray.name,
+      camera_distance_m = (origin - view_pos):length(),
+      expected_distance_m = ray.expected_distance_m,
+      distance_m = distance,
+    }
+  end
   -- Frame rate at this point, as CSP reports it; a missing field on the sim struct would throw, hence pcall.
-  local ok, fps = pcall(function() return ac.getSim().fps end)
+  local ok, fps = pcall(function() return sim.fps end)
   results[#results + 1] = {
     fps = ok and fps or nil,
     i = index,
@@ -55,11 +84,15 @@ local function record(p)
     wheels = wheels,
     wheels_outside = car.wheelsOutside,
     raycast_m = hit,
+    camera_position = { view_pos.x, view_pos.y, view_pos.z },
+    camera_owned = camera ~= nil and camera:active(),
+    terrain_rays = terrain_rays,
   }
 end
 
 local function finish()
   state = 'done'
+  set_camera(nil)
   save('results.json', { results = results, csp = ac.getPatchVersionCode() })
   save('status.json', { state = state, points = #points })
   -- os.remove is a stub inside CSP's sandbox; io.deleteFile is the real one. Without this the
@@ -95,6 +128,7 @@ function script.update(dt)
       -- CSP 0.2.11 faces the car *against* the direction it's given (M3, issue #14), so pass the
       -- reverse of the road's forward vector to face along the road.
       physics.setCarPosition(0, vec(p.pos), vec({ -p.dir[1], -p.dir[2], -p.dir[3] }))
+      set_camera(p.camera)
       wait = SETTLE_S
     else
       wait = wait - dt

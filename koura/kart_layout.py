@@ -289,7 +289,7 @@ def _surfaces():
     return output.getvalue()
 
 
-def write_layout(scene, out_dir, layout, base_info, *, log=print):
+def write_layout(scene, out_dir, layout, base_info, *, log=print, material_library=True):
     """Export the prepared kart-only scene as a complete standalone AC track."""
 
     physics = {key[2] for key, pieces in scene.pieces.items() if pieces}
@@ -309,7 +309,8 @@ def write_layout(scene, out_dir, layout, base_info, *, log=print):
         "trafico": None,
         "notas": None,
     }
-    root = Path(export_ac.write_track(scene, out_dir, TRACK_ID, info, [], layout.route, log=log))
+    root = Path(export_ac.write_track(scene, out_dir, TRACK_ID, info, [], layout.route, log=log,
+                                      material_library=material_library))
     (root / "ai" / "fast_lane.ai").write_bytes(
         export_ac._ai_bytes(layout.fast_lane, layout.fast_lane_half_widths)
     )

@@ -18,7 +18,7 @@ Status of each work package from [`handoff/WORK-PACKAGES.md`](handoff/WORK-PACKA
 | 🟡 | WP3 Lebanon profile | First version in use. |
 | 🟡 | WP4 Aerial imagery reader | Working, zoom 18. |
 | 🟡 | WP5 Zone build and stage 1 | Stage 1 builds in 3 minutes. |
-| ⬜ | WP6 Performance | Frame rate not measured. Memory handled with a cap and a coarser merge grid. |
+| ✅ | WP6 Performance | Stage 1 gated in game. Estimated p95 draw calls fell from 1,523 to 853 with distant terrain coverage and collision verified. |
 | 🟡 | WP7 Stage 2: the loop | Whole network builds in 20 minutes and is installed. |
 
 ## Road quality (the owner's first concern)

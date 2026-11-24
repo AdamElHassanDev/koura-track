@@ -6,9 +6,11 @@ calls the fork's pipeline.  Usage (from the project root):
 Options: --res N (terrain grid, default from zone.json), --buf M (override route buffer), --name ID,
 --no-imagery, --no-canopy, --overrides DIR, --out DIR, --fine-kart-imagery.
 Kart site: --kart-survey PATH, --kart-layout (requires surveyed timing and pit positions).
+Performance profile: --performance baseline|lod|horizon|atlas|full.
 """
 import sys, os, json, math, time, subprocess
 from pathlib import Path
+from functools import partial
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 os.environ.setdefault("OPENLAPS_CACHE", os.path.join(ROOT, "cache"))
 sys.path.insert(0, os.path.join(ROOT, "openlaps")); sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -35,6 +37,11 @@ TIMED_KART = "--kart-layout" in sys.argv
 NAME = opt("--name", "koura_karting_mania" if TIMED_KART else "koura")
 OUT = str(Path(opt("--out", Path(ROOT, "out", STAGE))).resolve())
 log = lambda *a: print(*a, flush=True)
+PERFORMANCE_STEPS = ("baseline", "lod", "horizon", "atlas", "full")
+performance = opt("--performance", "full")
+if performance not in PERFORMANCE_STEPS:
+    raise SystemExit(f"--performance must be one of: {', '.join(PERFORMANCE_STEPS)}")
+perf_step = PERFORMANCE_STEPS.index(performance)
 
 # ---- pinned origin and build rectangle (local metres) from zone.json
 O = ZONE["origin"]
@@ -238,6 +245,11 @@ argv = ["--bbox", f"{bbox.south},{bbox.west},{bbox.north},{bbox.east}", "--modo"
 if "--no-imagery" in sys.argv: argv.append("--sin-orto")
 if "--no-canopy" in sys.argv: argv.append("--sin-dosel")
 args = parser().parse_args(argv)
+args.koura_terrain_lod = 1500 if perf_step >= 1 else 0
+args.koura_horizon_underlayer = perf_step >= 2
+args.koura_terrain_atlas = perf_step >= 3
+args.koura_material_library = perf_step < 4
+log(f"  performance profile: {performance}")
 args.koura_overrides = Path(opt("--overrides", Path(ROOT, "koura", "overrides"))).resolve()
 if "--overrides" in sys.argv and not args.koura_overrides.is_dir():
     raise SystemExit(f"Override directory does not exist: {args.koura_overrides}")
@@ -271,7 +283,7 @@ if TIMED_KART:
         surface = _RoadSurface(scene, {"KART", "PITLANE"}).sampler(kart["poly"], None)
         return prepare_layout(scene, active_proj, kart_data, surface, lambda xy: terrain.height(*xy.T))
 
-    args.koura_layout = (prepare_kart, write_layout)
+    args.koura_layout = (prepare_kart, partial(write_layout, material_library=args.koura_material_library))
     args.sin_trafico = True
 args.zona_fn = lambda p: zona
 sp = [s for s in ZONE["spawn_points"] if zona.contains(Point(*[float(v) for v in proj.to_local(s["lon"], s["lat"])]))]
@@ -293,7 +305,6 @@ if zona.covers(kart["poly"].centroid):
     _roads.KART = kart
     log(f"  Karting Mania: racing line {kart['length']:.1f} m, paved area {kart['poly'].area:.0f} m2")
     if kart_data is not None and any(kart_data.get(key) for key in ("kerbs", "barriers", "poles", "markings")):
-        from functools import partial
         from kart_scenery import build as build_kart_scenery
 
         args.koura_kart_scenery = partial(build_kart_scenery, data=kart_data)

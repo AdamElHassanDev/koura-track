@@ -39,7 +39,7 @@ State how each item was checked: static, render, probe, or owner drove it.
 | | WP3 Lebanon profile | First version in use: region `lb`, flat roofs, tanks, stone colours, olives. Lane and pavement widths deliberately left at defaults. Gate not run | |
 | | WP4 Aerial imagery reader | First version in use: `XYZRaster`, zoom 18, lazy. The `ortofoto lb_xyz:` summary line and gate not done | |
 | | WP5 Zone build and **stage 1** | S1 builds in 3 minutes from `zone.json` with the pinned origin. Render viewpoints and gate not done | |
-| | WP6 Performance work | Not started, except a memory cap and a coarser merge grid on large stages. Frame rate never measured | |
+| 2026-11-24 | WP6 Performance work | Stage 1 gate passed. Distant ground stays covered, detailed collision survives and estimated p95 draw calls fell from 1,523 to 853. | Static VERIFY 6 and 10, matched renders, and **in-game probe**. Details below. |
 | | WP7 **Stage 2**, the loop | S2 builds in 17 to 20 minutes and is installed (build 9). Gate not run | |
 | 2026-11-24 | WP8 OSM ids and override files | Gate passed on the Btouratij memorial junction test build. All five override files are wired up, and road edges carry the source way IDs. | Before/after renders, network sidecars, fork tests and **in-game probe**. Details below. |
 | | WP9 Footage and recordings | Online videos listed, not downloaded or watched | |
@@ -49,7 +49,7 @@ State how each item was checked: static, render, probe, or owner drove it.
 | | WP13 Detail pass outside the green box | Not started | |
 | | WP14 Ground inside the loop | Not started | |
 
-**Next package:** WP6. Order: `BASE.md` section 8.
+**Next package:** WP14. Order: `BASE.md` section 8.
 
 ## WP8 override gate
 
@@ -72,6 +72,24 @@ The dated aerials support an 811.38 m UTM centreline (811.00 m from imagery scal
 The isolated K build used the traced annulus, paved apron, fine imagery, a surveyed 8.29 m kerb and two observed paddock divider runs. The ENTR2 driveway ends 2.89 m short of the surveyed asphalt. Local renders `out/kart/kart-built-aerial.jpg`, `kart-source-aerial.jpg` and `kart-built-lap-contact.jpg` show the geometry and the still-generic buildings. Detailed venue signs, terrace, poles, fences and the remaining kerbs have their evidence and status in [the item checklist](../koura/overrides/karting_mania_items.csv). The trial took 47 s and peaked at 1.48 GiB RSS with zero swap. Static `out/K/survey-check/verify.json` has nine passes, one expected failure, two failures, four unavailable and four not applicable. The circuit-surface scan found zero step sites, two seam sites and four hole sites (`out/kart/kart-surface.json`).
 
 The in-game CSP 0.2.11 probe completed in 77 s. All 41 positions spaced 20 m apart had all four wheels on `KART` and a successful downward raycast. Maximum placement drift was 1.03 m. Minimum and median frame rates were 399 and 433 FPS on the isolated site. The game closed and the restored `race.ini` matched its pre-launch hash. See `out/kart/ingame/report.json`, logs and screenshots. The survey file is retained privately and selected explicitly for this test. The K layout preflight correctly stopped on six missing surveyed fields. Synthetic writer tests exercised timing outputs. An actual timed lap and a deliberate cut remain unverified.
+
+## WP6 Terrain performance gate
+
+Stage 1 was rebuilt after each rendering change. Draw calls are the fork's static estimate. FPS is the CSP sample at five positions, including two 300 m overhead cameras, at the owner's current 1920 × 1080 settings.
+
+| S1 profile | KN5 meshes | Materials | DDS textures / MB | Draw calls median / p95 | FPS min / median |
+|---|---:|---:|---:|---:|---:|
+| Baseline | 3,677 | 803 | 1,491 / 130 | 598 / 1,523 | 402 / 479 |
+| 1,500 m terrain draw distance | 3,677 | 803 | 1,491 / 130 | 521 / 853 | 366 / 485 |
+| Always-drawn horizon underlayer | 3,677 | 803 | 1,491 / 130 | 522 / 853 | 391 / 468 |
+| Shared terrain atlases | 3,085 | 211 | 307 / 161 | 522 / 853 | 364 / 470 |
+| Full profile, library removed | 2,874 | 210 | 307 / 161 | 522 / 853 | 395 / 478 |
+
+The first S1 build ran alone under `/usr/bin/time -v`: 126.7 s, 8.52 GiB peak RSS, zero swap. The full profile took 128.0 s at the same rounded peak. Tiled terrain baking kept 648 physical tiles and shared imagery and masks across 56 atlases. Packing and gutters increased DDS bytes while reducing the number of textures, materials and library meshes. Close-up imagery keeps its own tiles. Vegetation accounted for only 142 of 2,874 visible meshes. The current tree density was retained.
+
+The draw-distance-only renders lost 28,320 and 37,881 ground pixels in the sampled views. The underlayer restored all pixels visible in the baseline at both positions. The final screenshots show uninterrupted terrain and no visible atlas seams from the tested viewpoints. All 74 in-game raycast distances matched the baseline exactly. Seventy-one hits within 25 cm of the expected detailed ground were 1.65 to 2.45 km from the active camera. The other tests included the two near controls and one surface hit above the expected height in both builds. All three driving positions passed wheel contact. The game closed and `race.ini` matched the original hash.
+
+VERIFY checks 6 and 10 passed (`out/WP6/full/verify.json`). Check 10 now uses the measured S1 p95 of 853 as the hard limit. The road geometry comparison found all 139 road primitives byte-identical. Triangle totals for each terrain physics surface were unchanged. Road-height and smoothing code, including `_superficie_comun` and the stage resolutions, remain under the reserve. The fork suite passed 142 tests with one skip. Evidence includes `out/WP6/{baseline,lod,horizon,atlas,full}/`, the two game views and `out/WP6/full/collision-geometry.json`. The Stage 2 regression build is running separately in `out/WP6/S2/`.
 
 ## Blocked
 

@@ -117,11 +117,58 @@ index 27deec8..62d5292 100644
              if pitched or (nave and shape != "flat"):
                  continue
              # cara interior del pretil
+diff --git a/openlaps/dds.py b/openlaps/dds.py
+index 3e945a3..8ad0bd4 100644
+--- a/openlaps/dds.py
++++ b/openlaps/dds.py
+@@ -205,8 +205,8 @@ def bleed(arr, thr=8):
+     return arr
+ 
+ 
+-def encode(img, alpha=None, max_size=None):
+-    """PIL Image -> bytes DDS. alpha=None decide según el canal alfa."""
++def encode(img, alpha=None, max_size=None, *, bleed_alpha=True):
++    """PIL Image -> bytes DDS. Sin bleed_alpha para máscaras donde los canales son independientes."""
+     img = img.convert("RGBA")
+     if max_size and max(img.size) > max_size:
+         img.thumbnail((max_size, max_size), Image.LANCZOS)
+@@ -219,7 +219,7 @@ def encode(img, alpha=None, max_size=None):
+     cur = img
+     while True:
+         arr = np.asarray(cur).astype(np.float32)
+-        if alpha:
++        if alpha and bleed_alpha:
+             arr = bleed(arr)
+             cur = Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8), "RGBA")
+         u8 = np.clip(arr, 0, 255).astype(np.uint8)
+@@ -230,7 +230,11 @@ def encode(img, alpha=None, max_size=None):
+         if cur.size == (1, 1):
+             break
+         nw, nh = max(1, cur.size[0] // 2), max(1, cur.size[1] // 2)
+-        cur = cur.resize((nw, nh), Image.BOX)
++        if alpha and not bleed_alpha:
++            # Los pesos del suelo no se mezclan como una imagen con transparencia.
++            cur = Image.merge("RGBA", tuple(channel.resize((nw, nh), Image.BOX) for channel in cur.split()))
++        else:
++            cur = cur.resize((nw, nh), Image.BOX)
+     flags = 0x1 | 0x2 | 0x4 | 0x1000 | 0x20000 | 0x80000
+     hdr = struct.pack("<4sIIIIIII", b"DDS ", 124, flags, h, w, len(levels[0]), 0, len(levels))
+     hdr += b"\0" * 44
 diff --git a/openlaps/export_ac.py b/openlaps/export_ac.py
-index 5e3853d..3afd34f 100644
+index 5e3853d..56c2902 100644
 --- a/openlaps/export_ac.py
 +++ b/openlaps/export_ac.py
-@@ -217,6 +217,7 @@ SURFACE_DEFS = [
+@@ -100,7 +100,8 @@ def write_kn5(scene, path, log=print):
+     for t in names:
+         img = _image(scene, t)
+         if t.endswith(("_mask.png", "mascara_r.png")):
+-            data = dds.encode(img, alpha=True)
++            # El alfa del atlas de suelo contiene la hojarasca, no la opacidad del RGB.
++            data = dds.encode(img, alpha=True, bleed_alpha=not t.startswith("terreno_b"))
+         else:
+             data = dds.encode(img, alpha=None if img.mode == "RGBA" else False)
+         total_tex += len(data)
+@@ -217,6 +218,7 @@ SURFACE_DEFS = [
      # vado: el camino bajo un palmo de agua. Frena (DAMPING) y agarra poco; pista válida
      ("MXVADO", 0.6, 0.35, "", 0, "NULL", 0, 1, 0.01, 0.8, 0, 0.2, 0.5),
      ("MXROCA", 0.82, 0, "", 0, "NULL", 0.1, 0, 0.03, 1.2, 0, 0.5, 0.4),
@@ -129,7 +176,23 @@ index 5e3853d..3afd34f 100644
  ]
  # Tipo de superficie de CSP (grava, arena y pasto con su física y sus efectos) y ruido Perlin en vez del seno
  # para los baches. Sin CSP estas líneas se ignoran y quedan la fricción y el seno de arriba.
-@@ -370,7 +371,7 @@ def write_track(scene, out_dir, track_id, info, map_lines, route=None, log=print
+@@ -351,11 +353,13 @@ def georef(info):
+     return out
+ 
+ 
+-def write_track(scene, out_dir, track_id, info, map_lines, route=None, log=print):
++def write_track(scene, out_dir, track_id, info, map_lines, route=None, log=print, *, material_library=True):
++    """Exporta la pista, con biblioteca de materiales para los scripts en vivo por defecto."""
+     root = os.path.join(out_dir, track_id)
+     for sub in ("", "ui", "data", "ai", "extension"):
+         os.makedirs(os.path.join(root, sub), exist_ok=True)
+-    agregar_biblioteca(scene)
++    if material_library:
++        agregar_biblioteca(scene)
+     write_kn5(scene, os.path.join(root, f"{track_id}.kn5"), log=log)
+     w = lambda rel, txt: open(os.path.join(root, rel), "w", newline="\r\n", encoding="utf-8").write(txt)  # noqa: E731
+     w("models.ini", f"[MODEL_0]\nFILE={track_id}.kn5\nPOSITION=0,0,0\nROTATION=0,0,0\n")
+@@ -370,7 +374,7 @@ def write_track(scene, out_dir, track_id, info, map_lines, route=None, log=print
          os.remove(ruta_trafico)
      w(os.path.join("data", "lighting.ini"), "[LIGHTING]\nSUN_PITCH_ANGLE=45\nSUN_HEADING_ANGLE=-40\n")
      ext_txt = ext_config(scene, info["lat"], info["lon"])
@@ -138,6 +201,94 @@ index 5e3853d..3afd34f 100644
          from . import vivo as V
          V.escribir_lua(root, "", "", float(info["lat"]), float(info["lon"]),
                         modo_espera=True, rect_horneado=info.get("rect"), pista=track_id)
+diff --git a/openlaps/extras.py b/openlaps/extras.py
+index 623c1c8..5f50305 100644
+--- a/openlaps/extras.py
++++ b/openlaps/extras.py
+@@ -322,12 +322,48 @@ def tv_cameras(scene, route, spacing=220.0):
+ 
+ 
+ # ------------------------------------------------------------------ horizonte
+-def horizon(scene, proj, dem_far, img_far, rect, far_m=5000.0, step=40.0, terrain=None, zona=None):
++def _keep_below_terrain(xs, ys, z, terrain):
++    """Baja los triángulos gruesos que cruzarían el terreno fino en cortes y vaguadas."""
++    gx, gy = terrain.gx, terrain.gy
++    fine_step = gx[1] - gx[0] + gy[1] - gy[0]
++    cols = np.flatnonzero((xs[:-1] < gx[-1]) & (xs[1:] > gx[0]))
++    rows = np.flatnonzero((ys[:-1] < gy[-1]) & (ys[1:] > gy[0]))
++    xlo = np.maximum(0, np.searchsorted(gx, xs, side="left") - 1)
++    xhi = np.minimum(len(gx), np.searchsorted(gx, xs, side="right") + 1)
++    ylo = np.maximum(0, np.searchsorted(gy, ys, side="left") - 1)
++    yhi = np.minimum(len(gy), np.searchsorted(gy, ys, side="right") + 1)
++    lower = np.zeros_like(z)
++    for j in rows:
++        jj = slice(ylo[j], yhi[j + 1])
++        dy = ys[j + 1] - ys[j]
++        fy = (gy[jj, None] - ys[j]) / dy
++        for i in cols:
++            ii = slice(xlo[i], xhi[i + 1])
++            dx = xs[i + 1] - xs[i]
++            fx = (gx[None, ii] - xs[i]) / dx
++            a, b, c, d = z[j, i], z[j, i + 1], z[j + 1, i + 1], z[j + 1, i]
++            abc = a + fx * (b - a) + fy * (c - b)
++            acd = a + fy * (d - a) + fx * (c - d)
++            # Incluye todos los vértices de la malla fina cuyos triángulos puedan
++            # cruzar la diagonal gruesa. Dentro de cada triángulo la diferencia es lineal.
++            diagonal = fx - fy
++            pad = fine_step / min(dx, dy)
++            grid = terrain.Z[jj, ii]
++            excess = max(np.max(abc - grid, where=diagonal >= -pad, initial=-np.inf),
++                         np.max(acd - grid, where=diagonal <= pad, initial=-np.inf))
++            corners = lower[j:j + 2, i:i + 2]
++            np.maximum(corners, excess + 0.4, out=corners)
++    return z - lower
++
++
++def horizon(scene, proj, dem_far, img_far, rect, far_m=5000.0, step=40.0, terrain=None, zona=None,
++            keep_underlayer=False):
+     """Relieve lejano (sin física) alrededor del área, con textura satelital o de cobertura.
+ 
+     El horizonte nunca debe asomar por encima del terreno detallado: el MDE lejano es de
+     superficie (incluye árboles y techos) y el detallado ya está corregido a terreno y tallado,
+     así que en la franja donde se enciman el horizonte se pone claramente por debajo.
++    `keep_underlayer` conserva la cobertura visual bajo las teselas con distancia de dibujo.
+     """
+     from PIL import Image
+     xmin, ymin, xmax, ymax = rect
+@@ -363,22 +399,23 @@ def horizon(scene, proj, dem_far, img_far, rect, far_m=5000.0, step=40.0, terrai
+         # en sombra: de lejos se veía como una franja negra en el horizonte.
+         if inner.any():
+             Z[inner] = terrain.height(GX[inner], GY[inner]) - 1.0
+-    # las celdas completamente dentro del área (con un paso de margen) se descartan abajo
+-    inside = (GX > xmin + step) & (GX < xmax - step) & (GY > ymin + step) & (GY < ymax - step)
+-    if zona is not None:
+-        # tramo largo: dentro del rectángulo solo hay terreno detallado en el corredor; el resto lo cubre este
+-        # relieve lejano (se quitan las celdas que caen bien dentro del corredor, donde quedaría bajo el detallado)
+-        import shapely
+-        dentro = zona.buffer(-1.5 * step)
+-        inside &= shapely.contains_xy(dentro, GX, GY) if not dentro.is_empty else False
++        if keep_underlayer:
++            Z = _keep_below_terrain(xs, ys, Z, terrain)
+     pos = np.column_stack([GX.ravel(), GY.ravel(), Z.ravel()])
+     uv = np.column_stack([(GX.ravel() - X0) / (X1 - X0), (Y1 - GY.ravel()) / (Y1 - Y0)])
+     h, w = Z.shape
+     idx = np.arange(w * h).reshape(h, w)
+     a, b = idx[:-1, :-1], idx[:-1, 1:]
+     c, d = idx[1:, 1:], idx[1:, :-1]
+-    cell_in = inside[:-1, :-1] & inside[1:, 1:] & inside[:-1, 1:] & inside[1:, :-1]
+-    keep = ~cell_in
++    keep = np.ones(a.shape, dtype=bool)
++    if not keep_underlayer:
++        # Descarta las celdas dentro del área detallada (con un paso de margen).
++        inside = (GX > xmin + step) & (GX < xmax - step) & (GY > ymin + step) & (GY < ymax - step)
++        if zona is not None:
++            import shapely
++            dentro = zona.buffer(-1.5 * step)
++            inside &= shapely.contains_xy(dentro, GX, GY) if not dentro.is_empty else False
++        keep &= ~(inside[:-1, :-1] & inside[1:, 1:] & inside[:-1, 1:] & inside[1:, :-1])
+     faces = np.concatenate([np.column_stack([a[keep], b[keep], c[keep]]), np.column_stack([a[keep], c[keep], d[keep]])])
+     W = H = 2048
+     px = X0 + (np.arange(W) + 0.5) * (X1 - X0) / W
 diff --git a/openlaps/koura_building_overrides.py b/openlaps/koura_building_overrides.py
 new file mode 100644
 index 0000000..386c513
@@ -1200,8 +1351,150 @@ index 0000000..a2ce4b7
 +        length = f", {metres:.1f} m" if kind == "walls" else ""
 +        log(f"  overrides {kind}: {applied} applied, {outside} outside/unmatched, {pending} pending, {invalid} invalid{length}")
 +    return exclusions
+diff --git a/openlaps/mesh.py b/openlaps/mesh.py
+index 255e809..01d6b17 100644
+--- a/openlaps/mesh.py
++++ b/openlaps/mesh.py
+@@ -49,14 +49,15 @@ def vertex_normals(pos, faces):
+ 
+ 
+ class Piece:
+-    __slots__ = ("pos", "uv", "faces", "nrm")
++    __slots__ = ("pos", "uv", "faces", "nrm", "tile")
+ 
+-    def __init__(self, pos, uv, faces, nrm):
++    def __init__(self, pos, uv, faces, nrm, tile=None):
+         self.pos, self.uv, self.faces, self.nrm = pos, uv, faces, nrm
++        self.tile = tile
+ 
+ 
+ class Scene:
+-    def __init__(self):
++    def __init__(self, terrain_lod=0):
+         self.pieces = defaultdict(list)      # (grupo, material, física) -> [Piece]
+         self.materials = {}                  # nombre -> dict
+         self.textures = {}                   # nombre -> bytes PNG (o imagen PIL perezosa)
+@@ -65,6 +66,7 @@ class Scene:
+         self.lights = []                     # luces CSP: (pos xyz, dir xyz, color rgb, intensidad, rango)
+         self.cameras = []                    # cámaras de TV: (pos, mira, in, out)
+         self.meta = {}
++        self.terrain_lod = terrain_lod
+ 
+     # -- materiales -------------------------------------------------------------
+     def material(self, name, texture, alpha=False, specular=0.05, emissive=0.0, shadows=True,
+@@ -82,7 +84,7 @@ class Scene:
+         return name
+ 
+     # -- geometría ----------------------------------------------------------------
+-    def add(self, group, material, pos, uv, faces, normals=None, phys=None):
++    def add(self, group, material, pos, uv, faces, normals=None, phys=None, *, tile=None):
+         pos = np.asarray(pos, np.float64).reshape(-1, 3)
+         if len(pos) == 0:
+             return
+@@ -91,7 +93,7 @@ class Scene:
+         if len(faces) == 0:
+             return
+         nrm = vertex_normals(pos, faces) if normals is None else np.asarray(normals, np.float64).reshape(-1, 3)
+-        self.pieces[(group, material, phys)].append(Piece(pos, uv, faces, nrm))
++        self.pieces[(group, material, phys)].append(Piece(pos, uv, faces, nrm, tile))
+ 
+     def dummy(self, name, pos, forward):
+         self.dummies.append((name, np.asarray(pos, float), np.asarray(forward, float)))
+@@ -103,24 +105,11 @@ class Scene:
+         keyf = lambda kv: (kv[0][0], kv[0][1], kv[0][2] or "")  # noqa: E731
+         for (group, material, phys), pieces in sorted(self.pieces.items(), key=keyf):
+             gcell = GROUP_CELL.get(group, cell)
+-            # celda base de cada triángulo
+-            cis = [np.floor(p.pos[p.faces].mean(1)[:, :2] / gcell).astype(np.int64) for p in pieces]
+             mat = self.materials.get(material) or {}
+             # las transparentes se ordenan por distancia malla a malla: se quedan en celdas pequeñas
+             fijo = not agrupar or gcell >= 1000.0 or mat.get("blend")
+-            destino = _celdas(cis, (1,) if fijo else NIVELES)
+-            cells = defaultdict(list)
+-            for p, ci in zip(pieces, cis):
+-                keys = np.array([destino[(int(x), int(y))] for x, y in np.unique(ci, axis=0)])
+-                if len(keys) == 1 or len({tuple(k) for k in keys}) == 1:
+-                    cells[tuple(keys[0])].append(p)
+-                    continue
+-                dk = np.array([destino[(int(x), int(y))] for x, y in ci])
+-                for k in {tuple(k) for k in dk}:
+-                    sel = (dk == k).all(1)
+-                    fsel = p.faces[sel]
+-                    used, inv = np.unique(fsel.ravel(), return_inverse=True)
+-                    cells[k].append(Piece(p.pos[used], p.uv[used], inv.reshape(-1, 3), p.nrm[used]))
++            cells = _piece_cells(pieces, gcell, (1,) if fijo else NIVELES)
++            lod = self.terrain_lod if group == "terreno" else GROUP_LOD.get(group, 0)
+             for (cx, cy, niv), plist in sorted(cells.items()):
+                 base = f"{group}_{material}_c{cx}_{cy}" + (f"x{niv}" if niv > 1 else "")
+                 nominal = gcell if gcell < 1e6 else 0.0
+@@ -129,14 +118,14 @@ class Scene:
+                     if p is None or (nv + len(p.pos) > MAX_VERTS and chunk):
+                         if chunk:
+                             out.append(_merge(base + (f"+{part}" if part else ""), group, material, phys, chunk,
+-                                              nominal))
++                                              nominal, lod))
+                             part += 1
+                         chunk, nv = [], 0
+                         if p is None:
+                             break
+                     if len(p.pos) > MAX_VERTS:
+                         for sub in _split_piece(p):
+-                            out.append(_merge(base + f"+{part}", group, material, phys, [sub], nominal))
++                            out.append(_merge(base + f"+{part}", group, material, phys, [sub], nominal, lod))
+                             part += 1
+                         continue
+                     chunk.append(p)
+@@ -150,6 +139,31 @@ class Scene:
+                 "materiales": len(self.materials), "texturas": len(self.textures)}
+ 
+ 
++def _piece_cells(pieces, gcell, niveles):
++    cells = defaultdict(list)
++    regular = []
++    for piece in pieces:
++        if piece.tile is None:
++            regular.append(piece)
++        else:
++            # Las teselas de un atlas comparten material, pero conservan su malla para el lodOut.
++            cells[(*piece.tile, 1)].append(piece)
++    cis = [np.floor(p.pos[p.faces].mean(1)[:, :2] / gcell).astype(np.int64) for p in regular]
++    destino = _celdas(cis, niveles)
++    for p, ci in zip(regular, cis):
++        keys = np.array([destino[(int(x), int(y))] for x, y in np.unique(ci, axis=0)])
++        if len(keys) == 1 or len({tuple(k) for k in keys}) == 1:
++            cells[tuple(keys[0])].append(p)
++            continue
++        dk = np.array([destino[(int(x), int(y))] for x, y in ci])
++        for k in {tuple(k) for k in dk}:
++            sel = (dk == k).all(1)
++            fsel = p.faces[sel]
++            used, inv = np.unique(fsel.ravel(), return_inverse=True)
++            cells[k].append(Piece(p.pos[used], p.uv[used], inv.reshape(-1, 3), p.nrm[used]))
++    return cells
++
++
+ def _celdas(cis, niveles):
+     """Reparte las celdas base en celdas de salida: {(x, y) base: (x, y, nivel)}. Se empieza por la celda más
+     grande y se subdivide la que pasa de TRI_CELDA triángulos (un árbol de cuadrantes por material)."""
+@@ -175,7 +189,7 @@ def _celdas(cis, niveles):
+     return destino
+ 
+ 
+-def _merge(name, group, material, phys, pieces, nominal=0.0):
++def _merge(name, group, material, phys, pieces, nominal, lod):
+     pos, uv, nrm, faces, off = [], [], [], [], 0
+     for p in pieces:
+         pos.append(p.pos)
+@@ -184,7 +198,6 @@ def _merge(name, group, material, phys, pieces, nominal=0.0):
+         faces.append(p.faces + off)
+         off += len(p.pos)
+     pos = np.vstack(pos)
+-    lod = GROUP_LOD.get(group, 0)
+     if lod and nominal:
+         # el juego mide la distancia al centro de la malla: una malla más grande que la celda base se apaga más
+         # lejos, para que nada de lo que lleva dentro desaparezca antes que con celdas pequeñas
 diff --git a/openlaps/pipeline.py b/openlaps/pipeline.py
-index bd1fc54..dd193c3 100644
+index bd1fc54..2586c12 100644
 --- a/openlaps/pipeline.py
 +++ b/openlaps/pipeline.py
 @@ -5,6 +5,7 @@ import math
@@ -1239,8 +1532,12 @@ index bd1fc54..dd193c3 100644
      R = regions.set_active(regions.elegir(args.region, getattr(args, "subregion", "auto"), proj.lat0, proj.lon0))
      rect = (proj.xmin, proj.ymin, proj.xmax, proj.ymax)
      big = proj.bbox().padded(450)
-@@ -191,6 +201,9 @@ def run(args, log=print, proj=None, scene=None, osm_data=None, pedazo=None, cat_
+@@ -189,8 +199,13 @@ def run(args, log=print, proj=None, scene=None, osm_data=None, pedazo=None, cat_
+     # por el perfil regional, que ya está elegido)
+     if scene is None:
          scene = preparar_escena(args, log)
++    if pedazo is None:
++        scene.terrain_lod = getattr(args, "koura_terrain_lod", scene.terrain_lod)
  
      osm = f_osm.result()
 +    overrides = _koura_overrides(args)
@@ -1249,7 +1546,7 @@ index bd1fc54..dd193c3 100644
      log(f"  {len(osm['ways'])} vías, {len(osm['areas'])} áreas, {len(osm['nodes'])} nodos sueltos")
      log("2/7 Relieve y cobertura de suelo…")
      dem, dem_is_dtm = f_dem.result()
-@@ -210,7 +223,8 @@ def run(args, log=print, proj=None, scene=None, osm_data=None, pedazo=None, cat_
+@@ -210,7 +225,8 @@ def run(args, log=print, proj=None, scene=None, osm_data=None, pedazo=None, cat_
  
      # ------------------------------------------------------------ zona urbana
      log("3/7 Edificios y zonas urbanas…")
@@ -1259,7 +1556,7 @@ index bd1fc54..dd193c3 100644
      urban_parts = [b["poly"].buffer(22) for b in blds]
      areas = []
      for a in osm["areas"]:
-@@ -270,6 +284,16 @@ def run(args, log=print, proj=None, scene=None, osm_data=None, pedazo=None, cat_
+@@ -270,6 +286,16 @@ def run(args, log=print, proj=None, scene=None, osm_data=None, pedazo=None, cat_
          cob.quieta = [g for g in cob.quieta if g.intersects(zona)]
          cob.corriente = [g for g in cob.corriente if g.intersects(zona)]
          log(f"  corredor: {zona.area / 1e6:.2f} km² de {area_km2:.1f} ({len(blds)} de {antes} edificios)")
@@ -1276,7 +1573,7 @@ index bd1fc54..dd193c3 100644
      blds_poly_pre = unary_union([b["poly"] for b in blds]) if blds else None
      has_gr = any(b["tags"].get("barrier") == "guard_rail" for b in osm.get("barriers", []))
      rails = []
-@@ -315,7 +339,10 @@ def run(args, log=print, proj=None, scene=None, osm_data=None, pedazo=None, cat_
+@@ -315,7 +341,10 @@ def run(args, log=print, proj=None, scene=None, osm_data=None, pedazo=None, cat_
          X.tv_cameras(scene, route)
          info_run = "clockwise" if args.modo == "circuito" else "A-B"
      elif pedazo is None:
@@ -1288,17 +1585,19 @@ index bd1fc54..dd193c3 100644
  
      # ------------------------------------------------------------ terreno
      log("5/7 Terreno: tallado y textura…")
-@@ -346,7 +373,8 @@ def run(args, log=print, proj=None, scene=None, osm_data=None, pedazo=None, cat_
+@@ -346,7 +375,10 @@ def run(args, log=print, proj=None, scene=None, osm_data=None, pedazo=None, cat_
      if pedazo is not None:
          terr.solo = pedazo
      terr.zona = zona
 -    terr.build_mesh(scene, painter, tile_m=args.tesela, mpp=mpp, cobertura=cob)
-+    fine_ground = getattr(args, "koura_fine_ground", {})
-+    terr.build_mesh(scene, painter, tile_m=args.tesela, mpp=mpp, cobertura=cob, **fine_ground)
++    ground_options = dict(getattr(args, "koura_fine_ground", {}))
++    if pedazo is None and getattr(args, "koura_terrain_atlas", False):
++        ground_options["terrain_atlas"] = True
++    terr.build_mesh(scene, painter, tile_m=args.tesela, mpp=mpp, cobertura=cob, **ground_options)
      plazas_peatonales(scene, plazas, terr, rd["road_polys"], blds_poly, log=log)
      agua.construir(scene)
  
-@@ -371,10 +399,19 @@ def run(args, log=print, proj=None, scene=None, osm_data=None, pedazo=None, cat_
+@@ -371,10 +403,19 @@ def run(args, log=print, proj=None, scene=None, osm_data=None, pedazo=None, cat_
      log(f"  detalles: orillas en {ne} tramos, desgaste en {nw}, {nl} arbotantes, señales: "
          + ", ".join(f"{k} {v}" for k, v in sg.items()))
      excl = [rd["road_union"].buffer(2.0)] if rd["road_union"] is not None else []
@@ -1318,7 +1617,7 @@ index bd1fc54..dd193c3 100644
      if water_poly is not None:
          excl.append(water_poly)
      if rd.get("tunnel_poly") is not None:      # ni árboles sobre la tapa del túnel ni en sus bocas
-@@ -390,6 +427,8 @@ def run(args, log=print, proj=None, scene=None, osm_data=None, pedazo=None, cat_
+@@ -390,6 +431,8 @@ def run(args, log=print, proj=None, scene=None, osm_data=None, pedazo=None, cat_
          x, y = proj.to_local([n["lon"] for n in trees], [n["lat"] for n in trees])
          osm_trees = np.column_stack([x, y])
          inside = (x > proj.xmin) & (x < proj.xmax) & (y > proj.ymin) & (y < proj.ymax)
@@ -1327,7 +1626,17 @@ index bd1fc54..dd193c3 100644
          osm_trees = osm_trees[inside]
      trunks = V.build(scene, terr, lc, proj, exclude, osm_trees, density=args.vegetacion,
                       road_pts=rd["carve"][:, :2] if len(rd["carve"]) else None, chm=chm, log=log)
-@@ -420,6 +459,11 @@ def run(args, log=print, proj=None, scene=None, osm_data=None, pedazo=None, cat_
+@@ -399,7 +442,8 @@ def run(args, log=print, proj=None, scene=None, osm_data=None, pedazo=None, cat_
+         try:
+             dem_far = f_far_dem.result()
+             s2_far = f_far_s2.result() if f_far_s2 else None
+-            nf = X.horizon(scene, proj, dem_far, s2_far, rect, terrain=terr, zona=zona)
++            nf = X.horizon(scene, proj, dem_far, s2_far, rect, terrain=terr, zona=zona,
++                           keep_underlayer=getattr(args, "koura_horizon_underlayer", False))
+             log(f"  horizonte: {nf:,} triángulos hasta 5 km")
+         except Exception as e:  # noqa: BLE001
+             log(f"  aviso: sin horizonte ({e})")
+@@ -420,6 +464,11 @@ def run(args, log=print, proj=None, scene=None, osm_data=None, pedazo=None, cat_
      log("7/7 Exportando…")
      os.makedirs(args.salida, exist_ok=True)
      name = args.nombre
@@ -1339,7 +1648,7 @@ index bd1fc54..dd193c3 100644
      mallas = scene.meshes()          # las mismas para el resumen y el .glb (armarlas cuesta ~1 s)
      st = scene.stats(mallas)
      log(f"  escena: {st['mallas']} mallas, {st['vertices']:,} vértices, {st['triangulos']:,} triángulos, "
-@@ -438,8 +482,7 @@ def run(args, log=print, proj=None, scene=None, osm_data=None, pedazo=None, cat_
+@@ -438,8 +487,7 @@ def run(args, log=print, proj=None, scene=None, osm_data=None, pedazo=None, cat_
      log(f"  {glb} ({size / 1e6:.1f} MB)")
      if args.ac:
          # el muro invisible de borde queda en el .glb, pero en AC estorbaría si el usuario activa el modo en vivo
@@ -1349,7 +1658,7 @@ index bd1fc54..dd193c3 100644
          thumb = prev.copy()
          thumb.thumbnail((512, 512))
          bio = io.BytesIO()
-@@ -452,7 +495,7 @@ def run(args, log=print, proj=None, scene=None, osm_data=None, pedazo=None, cat_
+@@ -452,7 +500,7 @@ def run(args, log=print, proj=None, scene=None, osm_data=None, pedazo=None, cat_
                      s2_years=f" ({', '.join(sorted(rasters.S2_YEARS))})" if rasters.S2_YEARS else "") + "".join("- " + a + chr(10) for a in R.attribution),
                  "description": f"Generada con openlaps a partir de datos abiertos. {area_km2:.2f} km².",
                  "tags": [t for t in (R.code, R.sub, "openlaps", args.modo) if t], "length": length or rd["stats"]["km"] * 1000, "run": info_run,
@@ -1358,7 +1667,7 @@ index bd1fc54..dd193c3 100644
                  "ai_hw": route_hw, "width": int(round(float(np.median(route_hw)) * 2)) if route_hw is not None else "",
                  "closed": args.modo == "circuito", "notas": notas_ruta,
                  "rect": [float(proj.xmin), float(proj.ymin), float(proj.xmax), float(proj.ymax)],
-@@ -463,7 +506,11 @@ def run(args, log=print, proj=None, scene=None, osm_data=None, pedazo=None, cat_
+@@ -463,7 +511,12 @@ def run(args, log=print, proj=None, scene=None, osm_data=None, pedazo=None, cat_
                               "dem": getattr(args, "dem", None),
                               "tuneles": getattr(args, "tuneles", "principales")}}
          info["trafico"] = datos_trafico
@@ -1367,11 +1676,12 @@ index bd1fc54..dd193c3 100644
 +        if custom_layout is not None:
 +            write_layout(scene, ac_output, layout, info, log=log)
 +        else:
-+            export_ac.write_track(scene, ac_output, name, info, map_lines, route, log=log)
++            export_ac.write_track(scene, ac_output, name, info, map_lines, route, log=log,
++                                  material_library=getattr(args, "koura_material_library", True))
      with open(os.path.join(args.salida, f"{name}.json"), "w", encoding="utf-8") as f:
          json.dump({"area_km2": area_km2, "stats": st, "carreteras": rd["stats"], "cobertura": cob.stats,
                     "segundos": round(time.time() - t0, 1),
-@@ -807,6 +854,42 @@ def _place_stage(scene, net, route, route_hw, legs, closed, log=print):
+@@ -807,6 +860,42 @@ def _place_stage(scene, net, route, route_hw, legs, closed, log=print):
      log(f"  salida, meta y {closed_n} calles laterales cerradas con vallas")
  
  
@@ -2295,50 +2605,210 @@ index e65f7e9..92aaaa3 100644
      import rasterio.transform
      from .cache import fetch
 diff --git a/openlaps/terrain.py b/openlaps/terrain.py
-index 91c778b..ad78b1b 100644
+index 91c778b..ff66803 100644
 --- a/openlaps/terrain.py
 +++ b/openlaps/terrain.py
-@@ -404,12 +404,14 @@ class Terrain:
+@@ -404,77 +404,136 @@ class Terrain:
          return n / np.linalg.norm(n, axis=2, keepdims=True)
  
      # ------------------------------------------------------------------ teselas
 -    def build_mesh(self, scene, painter, tile_m=128.0, mpp=0.5, cobertura=None):
-+    def build_mesh(self, scene, painter, tile_m=128.0, mpp=0.5, cobertura=None,
-+                   fine_boxes=(), fine_mpp=0.25, fine_ortho=None):
-         N = self.normals()
-         p = self.proj
+-        N = self.normals()
+-        p = self.proj
++    def _tiles(self, step, fine_boxes):
          nx, ny = len(self.gx), len(self.gy)
-         step = int(round(tile_m / self.res))
-         ti = 0
-+        fine_tiles = 0
-         self.tiles = []
+-        step = int(round(tile_m / self.res))
+-        ti = 0
+-        self.tiles = []
++        solo = getattr(self, "solo", None)   # modo en vivo: solo las teselas del centro del pedazo
++        zona = getattr(self, "zona", None)   # tramo largo: solo las teselas que toca el corredor
          for j0 in range(0, ny - 1, step):
              for i0 in range(0, nx - 1, step):
-@@ -440,7 +442,13 @@ class Terrain:
-                 faces = faces[~quita]
-                 name = f"terreno_{ti:03d}"
-                 tex = f"{name}.png"
+                 i1, j1 = min(nx - 1, i0 + step), min(ny - 1, j0 + step)
+-                xs, ys = self.gx[i0:i1 + 1], self.gy[j0:j1 + 1]
+-                GX, GY = np.meshgrid(xs, ys)
+-                Z = self.Z[j0:j1 + 1, i0:i1 + 1]
+-                H = self.hole[j0:j1 + 1, i0:i1 + 1]
+-                pos = np.column_stack([GX.ravel(), GY.ravel(), Z.ravel()])
+-                nrm = N[j0:j1 + 1, i0:i1 + 1].reshape(-1, 3)
+-                x0, x1, y0, y1 = xs[0], xs[-1], ys[0], ys[-1]
+-                solo = getattr(self, "solo", None)    # modo en vivo: solo las teselas del centro del pedazo
++                x0, x1, y0, y1 = self.gx[i0], self.gx[i1], self.gy[j0], self.gy[j1]
+                 if solo is not None and not (solo[0] <= (x0 + x1) / 2 <= solo[2] and solo[1] <= (y0 + y1) / 2 <= solo[3]):
+                     continue
+-                zona = getattr(self, "zona", None)    # tramo largo: solo las teselas que toca el corredor
+-                if zona is not None and not zona.intersects(shapely.box(x0, y0, x1, y1)):
++                bounds = (x0, y0, x1, y1)
++                if zona is not None and not zona.intersects(shapely.box(*bounds)):
+                     continue
+-                uv = np.column_stack([(GX.ravel() - x0) / (x1 - x0), (y1 - GY.ravel()) / (y1 - y0)])
+-                w, h = len(xs), len(ys)
+-                idx = np.arange(w * h).reshape(h, w)
+-                a, b = idx[:-1, :-1].ravel(), idx[:-1, 1:].ravel()
+-                c, d = idx[1:, 1:].ravel(), idx[1:, :-1].ravel()
+-                faces = np.concatenate([np.column_stack([a, b, c]), np.column_stack([a, c, d])])
+-                hv = H.ravel()
+-                quita = hv[faces].any(1)
+-                if hasattr(self, "quitar1"):
+-                    quita |= np.concatenate([self.quitar1[j0:j1, i0:i1].ravel(), self.quitar2[j0:j1, i0:i1].ravel()])
+-                faces = faces[~quita]
+-                name = f"terreno_{ti:03d}"
+-                tex = f"{name}.png"
 -                img = painter.paint_tile(x0, y0, x1, y1, mpp, self)
+-                self.tiles.append((x0, y0, x1, y1, img))
+-                scene.textures[tex] = png(img)
+-                scene.images[tex] = img
+-                scene.images[f"{name}_mask.png"] = painter.last_mask
+-                rep = tile_m / 2.0   # una repetición del detalle cada 2 m
+-                scene.material(name, tex, kind="multilayer", specular=0.0, ambient=0.4, diffuse=0.36, spec_exp=5.0,
+-                               extra={"mask": f"{name}_mask.png",
+-                                      "details": ["det_pasto.png", "det_tierra.png", "det_roca.png", "det_hojarasca.png"],
+-                                      "detail_nm": "det_nm.png", "mult": rep,
+-                                      "props": {"magicMult": 1.0, "fresnelC": 0.0, "fresnelEXP": 4.0, "fresnelMaxLevel": 0.0,
+-                                                "detailNMMult": [0.0, 1.0, rep, 0, 0, 0, 0, 0, 0, 0]}})
+-                for fis, sel in fisica_del_suelo(pos, faces, cobertura):
+-                    usados = np.unique(sel)
+-                    remap = np.full(len(pos), -1)
 +                sharp = any(x0 < east and x1 > west and y0 < north and y1 > south
 +                            for west, south, east, north in fine_boxes)
++                yield i0, i1, j0, j1, bounds, sharp
++
++    def build_mesh(self, scene, painter, tile_m=128.0, mpp=0.5, cobertura=None,
++                   fine_boxes=(), fine_mpp=0.25, fine_ortho=None, terrain_atlas=False):
++        N = self.normals()
++        step = int(round(tile_m / self.res))
++        tiles = list(self._tiles(step, fine_boxes))
++        blocks = {}
++        if terrain_atlas:
++            for i0, _, j0, _, bounds, sharp in tiles:
 +                if sharp:
-+                    img = painter.paint_tile(x0, y0, x1, y1, fine_mpp, self, fine_ortho=fine_ortho)
-+                    fine_tiles += 1
++                    continue
++                key = i0 // (4 * step), j0 // (4 * step)
++                x0, y0, x1, y1 = bounds
++                if key in blocks:
++                    bx0, by0, bx1, by1 = blocks[key]
++                    bounds = min(x0, bx0), min(y0, by0), max(x1, bx1), max(y1, by1)
++                blocks[key] = bounds
++            blocks = {key: _atlas_bounds(bounds, mpp) for key, bounds in blocks.items()}
++        fine_tiles = 0
++        self.tiles = []
++        for ti, (i0, i1, j0, j1, bounds, sharp) in enumerate(tiles):
++            x0, y0, x1, y1 = bounds
++            name = f"terreno_{ti:03d}"
++            texture_bounds, tile, crop = bounds, None, None
++            span = tile_m
++            if terrain_atlas and not sharp:
++                bx, by = i0 // (4 * step), j0 // (4 * step)
++                name = f"terreno_b{bx}_{by}"
++                texture_bounds = blocks[bx, by]
++                west, south, east, north = texture_bounds
++                span = east - west
++                tile = i0 // step, j0 // step
++                crop = ((x0 - west) / mpp, (north - y1) / mpp, (x1 - west) / mpp, (north - y0) / mpp)
++            tex = f"{name}.png"
++            if tile is None or tex not in scene.images:
++                if sharp:
++                    img = painter.paint_tile(*texture_bounds, fine_mpp, self, fine_ortho=fine_ortho)
 +                else:
-+                    img = painter.paint_tile(x0, y0, x1, y1, mpp, self)
-                 self.tiles.append((x0, y0, x1, y1, img))
-                 scene.textures[tex] = png(img)
-                 scene.images[tex] = img
-@@ -475,6 +483,8 @@ class Terrain:
-                         scene.add("terreno", name, q, quv, ff, phys="GRASS")
-                 ti += 1
-         self.log(f"  terreno: {ti} teselas de {tile_m:.0f} m con textura horneada a {mpp} m/px")
++                    img = painter.paint_tile(*texture_bounds, mpp, self)
++                _terrain_material(scene, name, img, painter.last_mask, span / 2.0)
++            fine_tiles += int(sharp)
++            self.tiles.append((*bounds, scene.images[tex], crop))
++
++            xs, ys = self.gx[i0:i1 + 1], self.gy[j0:j1 + 1]
++            GX, GY = np.meshgrid(xs, ys)
++            Z = self.Z[j0:j1 + 1, i0:i1 + 1]
++            H = self.hole[j0:j1 + 1, i0:i1 + 1]
++            pos = np.column_stack([GX.ravel(), GY.ravel(), Z.ravel()])
++            nrm = N[j0:j1 + 1, i0:i1 + 1].reshape(-1, 3)
++            uv = _terrain_uv(pos, texture_bounds)
++            w, h = len(xs), len(ys)
++            idx = np.arange(w * h).reshape(h, w)
++            a, b = idx[:-1, :-1].ravel(), idx[:-1, 1:].ravel()
++            c, d = idx[1:, 1:].ravel(), idx[1:, :-1].ravel()
++            faces = np.concatenate([np.column_stack([a, b, c]), np.column_stack([a, c, d])])
++            hv = H.ravel()
++            quita = hv[faces].any(1)
++            if hasattr(self, "quitar1"):
++                quita |= np.concatenate([self.quitar1[j0:j1, i0:i1].ravel(), self.quitar2[j0:j1, i0:i1].ravel()])
++            faces = faces[~quita]
++            for fis, sel in fisica_del_suelo(pos, faces, cobertura):
++                usados = np.unique(sel)
++                remap = np.full(len(pos), -1)
++                remap[usados] = np.arange(len(usados))
++                scene.add("terreno", name, pos[usados], uv[usados], remap[sel], normals=nrm[usados], phys=fis, tile=tile)
++            # tapa y franja de los túneles que caen en esta tesela, con su misma textura
++            for ppos, pf in getattr(self, "parches", []):
++                cen = ppos[pf].mean(1)
++                en = (cen[:, 0] >= x0) & (cen[:, 0] <= x1) & (cen[:, 1] >= y0) & (cen[:, 1] <= y1)
++                if en.any():
++                    fsel = pf[en]
++                    usados = np.unique(fsel)
++                    remap = np.full(len(ppos), -1)
+                     remap[usados] = np.arange(len(usados))
+-                    scene.add("terreno", name, pos[usados], uv[usados], remap[sel], normals=nrm[usados], phys=fis)
+-                # tapa y franja de los túneles que caen en esta tesela, con su misma textura
+-                for ppos, pf in getattr(self, "parches", []):
+-                    cen = ppos[pf].mean(1)
+-                    en = (cen[:, 0] >= x0) & (cen[:, 0] <= x1) & (cen[:, 1] >= y0) & (cen[:, 1] <= y1)
+-                    if en.any():
+-                        fsel = pf[en]
+-                        usados = np.unique(fsel)
+-                        remap = np.full(len(ppos), -1)
+-                        remap[usados] = np.arange(len(usados))
+-                        q = ppos[usados]
+-                        quv = np.column_stack([(q[:, 0] - x0) / (x1 - x0), (y1 - q[:, 1]) / (y1 - y0)])
+-                        ff = remap[fsel]
+-                        tri = q[ff]
+-                        arriba = np.cross(tri[:, 1] - tri[:, 0], tri[:, 2] - tri[:, 0])[:, 2] > 0
+-                        ff[~arriba] = ff[~arriba][:, ::-1]
+-                        scene.add("terreno", name, q, quv, ff, phys="GRASS")
+-                ti += 1
+-        self.log(f"  terreno: {ti} teselas de {tile_m:.0f} m con textura horneada a {mpp} m/px")
++                    q = ppos[usados]
++                    quv = _terrain_uv(q, texture_bounds)
++                    ff = remap[fsel]
++                    tri = q[ff]
++                    arriba = np.cross(tri[:, 1] - tri[:, 0], tri[:, 2] - tri[:, 0])[:, 2] > 0
++                    ff[~arriba] = ff[~arriba][:, ::-1]
++                    scene.add("terreno", name, q, quv, ff, phys="GRASS", tile=tile)
++        self.log(f"  terreno: {len(tiles)} teselas de {tile_m:.0f} m con textura horneada a {mpp} m/px")
++        if blocks:
++            self.log(f"  terreno: {len(blocks)} atlas de hasta 4 × 4 teselas")
 +        if fine_tiles:
 +            self.log(f"  terreno fino: {fine_tiles} teselas con textura a {fine_mpp} m/px")
++
++
++def _atlas_bounds(bounds, mpp):
++    # Una textura cuadrada conserva la misma escala de detalle en los dos ejes.
++    # El borde de ocho píxeles comparte muestras del mundo con los bloques vecinos y evita el wrap de los mipmaps cercanos.
++    x0, y0, x1, y1 = bounds
++    west, south = math.floor(x0 / mpp) - 8, math.floor(y0 / mpp) - 8
++    east, north = math.ceil(x1 / mpp) + 8, math.ceil(y1 / mpp) + 8
++    size = (max(east - west, north - south) + 3) // 4 * 4
++    return west * mpp, (north - size) * mpp, (west + size) * mpp, north * mpp
++
++
++def _terrain_uv(pos, bounds):
++    x0, y0, x1, y1 = bounds
++    return np.column_stack([(pos[:, 0] - x0) / (x1 - x0), (y1 - pos[:, 1]) / (y1 - y0)])
++
++
++def _terrain_material(scene, name, image, mask, rep):
++    tex = f"{name}.png"
++    scene.textures[tex] = png(image)
++    scene.images[tex] = image
++    scene.images[f"{name}_mask.png"] = mask
++    scene.material(name, tex, kind="multilayer", specular=0.0, ambient=0.4, diffuse=0.36, spec_exp=5.0,
++                   extra={"mask": f"{name}_mask.png",
++                          "details": ["det_pasto.png", "det_tierra.png", "det_roca.png", "det_hojarasca.png"],
++                          "detail_nm": "det_nm.png", "mult": rep,
++                          "props": {"magicMult": 1.0, "fresnelC": 0.0, "fresnelEXP": 4.0, "fresnelMaxLevel": 0.0,
++                                    "detailNMMult": [0.0, 1.0, rep, 0, 0, 0, 0, 0, 0, 0]}})
  
  
  CUNETA_ANCHO = 1.6        # m desde la orilla de la calzada hasta donde la cuneta vuelve al terreno
-@@ -583,7 +593,7 @@ class GroundPainter:
+@@ -583,7 +642,7 @@ class GroundPainter:
          self.buildings = buildings_poly
          self.water = water_poly
  
@@ -2347,7 +2817,7 @@ index 91c778b..ad78b1b 100644
          W = int(round((x1 - x0) / mpp))
          H = int(round((y1 - y0) / mpp))
          px = x0 + (np.arange(W) + 0.5) * mpp
-@@ -613,10 +623,14 @@ class GroundPainter:
+@@ -613,10 +672,14 @@ class GroundPainter:
          col = col * (1 - patch * 0.6) + dirt * patch * 0.6
          # imagen Sentinel-2 (10 m) como base: da los colores y manchas reales del lugar;
          # lo procedural solo aporta el grano fino que el satélite no ve
@@ -2364,6 +2834,21 @@ index 91c778b..ad78b1b 100644
              ph = ph * (0.94 + 0.12 * n2)[..., None]
              col = np.where(ok[..., None], ph * 0.94 + col * 0.06, col)
          elif self.s2 is not None:
+@@ -686,10 +749,12 @@ def mosaic(tiles, proj, mpp_out=2.0):
+     W = int((proj.xmax - proj.xmin) / mpp_out) + 1
+     H = int((proj.ymax - proj.ymin) / mpp_out) + 1
+     out = Image.new("RGB", (W, H), (0, 0, 0))
+-    for x0, y0, x1, y1, img in tiles:
++    for x0, y0, x1, y1, img, *region in tiles:
+         w = max(1, int(round((x1 - x0) / mpp_out)))
+         h = max(1, int(round((y1 - y0) / mpp_out)))
+-        out.paste(img.resize((w, h), Image.LANCZOS), (int((x0 - proj.xmin) / mpp_out), int((proj.ymax - y1) / mpp_out)))
++        box = region[0] if region else None
++        out.paste(img.resize((w, h), Image.LANCZOS, box=box),
++                  (int((x0 - proj.xmin) / mpp_out), int((proj.ymax - y1) / mpp_out)))
+     return out
+ 
+ 
 diff --git a/openlaps/vegetation.py b/openlaps/vegetation.py
 index 665c867..43810f0 100644
 --- a/openlaps/vegetation.py
