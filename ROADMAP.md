@@ -25,11 +25,11 @@ Status of each work package from [`handoff/WORK-PACKAGES.md`](handoff/WORK-PACKA
 
 | | Item | State |
 |---|---|---|
-| ✅ | Measuring tools | `ride.py`, `grade.py`, `survey.py` |
-| 🟡 | Smooth grades | Main highways: 0.4 % of length over a 2 % slope jump in 8 m. Target: none. |
+| ✅ | Measuring tools | `ride.py`, `grade.py`, `survey.py`, `elevation.py` |
+| 🟡 | Smooth grades | Main highways: 0.9 % of length over a 2 % slope jump in 8 m, none over 5 %. Target: none over 2 %. |
 | 🟡 | Junction surfaces | Bare patches paved. Remaining jumps of 7 to 8 % at some junction patches. |
 | ⬜ | Junction shapes | Still generic; to be corrected junction by junction from imagery. |
-| ⬜ | Hills that feel too gentle | Needs the owner's list of places, or GPS recordings. |
+| 🟡 | Real heights | Road follows the 30 m height model to 0.7 m on the loop (build 9). Next: fit to a phone recording of the real roads. |
 
 ## Detail
 
@@ -40,4 +40,5 @@ Status of each work package from [`handoff/WORK-PACKAGES.md`](handoff/WORK-PACKA
 | 🟡 | WP11 Karting Mania | Surface and shape done. Tyre walls, kerbs, concrete colour, pit building, timing and real slope not done. |
 | ⬜ | WP12 Btouratij and Nakhle fine detail | |
 | ⬜ | WP13 Detail outside the stage 1 box | |
-| ⬜ | WP10 Stage 3 and detail passes | |
+| ⬜ | WP14 Ground inside the loop | The middle of the loop is empty today. Fill with ground, grass and olive groves. |
+| ⬜ | WP10 Speed bumps, night lighting, traffic | |

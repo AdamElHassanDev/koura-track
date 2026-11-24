@@ -367,7 +367,7 @@ See `DASHCAM.md` for sources and how each is used. There are two sources: existi
 
 ## WP10. Stage 3 and detail passes
 
-Only after stage 2 is accepted. In priority order:
+Only after stage 2 is accepted. In priority order. Item 1 is replaced by WP14 (the owner asked for the empty middle of the loop to be filled, at once, not as an optional extra); items 2, 3 and 6 are now part of WP12 and WP13 because `DETAIL-STANDARD.md` requires walls and landmarks there. What stays here: items 4, 5 and 7.
 
 1. **S3 as a baked track**, if the WP6 limit suggests it fits (S3 has 3.5 times the detailed area of S2). Otherwise offer the live-mode extension beyond the S2 ground (`--excluir` with the S2 rectangle, `--centro` equal to the pinned origin) and explain its limits.
 2. Retaining walls, terraces and building plinths on slopes: port the approach from road-to-assetto's `building_bases.py` and `hillside*.py`. Koura is steep; buildings currently sit on carved flats.
@@ -512,3 +512,45 @@ The owner's words: "I want the extreme detail area to be detailed, but the areas
 **Evidence:** the CSV files and the section sheets under `out/S2/sections/`.
 
 **If usage runs short:** stop at a route boundary, not mid-route, and record the next section to do.
+
+---
+
+## WP14. Ground inside the loop: no dead ground
+
+Read `DETAIL-STANDARD.md` section "3. No dead ground" first.
+
+The owner's words: "the dead parts of the map in the center where there is no terrain should be filled with grass and olive trees."
+
+**The problem.** Stage 2 ground is the stage 1 box, a strip 250 m either side of each named route, a 450 m disc on six village centres and the kart site: 27.5 km² of a 144.7 km² rectangle. From the road the driver sees the edge of that strip, and beyond it nothing. The largest hole is the middle of the loop.
+
+**What to build.** Ground everywhere the driver can see from any named route, at background quality:
+
+| Item | Background quality |
+|---|---|
+| Terrain | 6 to 8 m mesh, no carving except where a road crosses it |
+| Ground texture | Aerial image at about 1 m per pixel |
+| Trees | Olive groves, pines and oaks where the image and the canopy model show them, as cheap billboards or low models, at the real density. Rows where the groves are in rows |
+| Buildings | Footprint boxes with flat roofs and the `lb` colours. No detail |
+| Roads | Every road that joins two points of the stage 2 network is built as a normal drivable road. Dead-end tracks appear in the ground texture only |
+| Collision | Ground only. No tree or post colliders out here |
+
+**Steps**
+
+1. Needs WP6 done (draw distance on terrain, draw-call limit known). If WP6 is not done, stop and do WP6.
+2. Measure before designing. Write to `PROGRESS.md`: the area inside the loop polygon that is not stage 2 ground; the area visible from the routes (run a line-of-sight calculation on the 30 m height model from a point every 100 m along each route, eye height 1.2 m, range 3 km); the km of road and number of buildings in each.
+3. Choose the area to fill: the visible area, grown by 100 m, plus the whole inside of the loop. If that is more than the WP6 limit allows, keep the inside of the loop and cut the outside by distance from the route.
+4. Read how the fork builds terrain at different resolutions (`terrain.py`, `pipeline.py`, search for `terrain_res` and `zona`). Choose the first of these that works and record why:
+   - a. a second quality class inside one build: a `background` part type in `zone.json` that `koura/build.py` turns into a second zone polygon, with coarse terrain and no detail passes there;
+   - b. a second track file: build the background ground as its own coarse build of the same rectangle with the same pinned origin, with the stage 2 zone cut out, and list both files in `models.ini`;
+   - c. the generator's live-mode ground for the area outside stage 2, as WP10 item 1 described, only if a and b both fail.
+5. The stage 2 edge wall: stage 2 has a collision wall round its outline so the car cannot drive off the ground. Where background ground now continues beyond the outline, the visible wall (if any) must go and the collision wall must move to the outer edge of the background ground, or stay where it is if the background ground has no collision. Decide, write it down, and check that a car cannot fall off the world anywhere.
+6. The seam: where background ground meets stage 2 ground the two must meet without a gap or a step higher than 10 cm. Check the whole seam with a script (sample both meshes every 5 m along the stage 2 outline) and look at six places in `render.py`.
+7. Trees: place olives from the image, not only the canopy model. A grove in the image must be a grove in the map. Compare ten 300 m squares side by side (image, top-down render) and keep the sheets out of git.
+8. Build stage 2 with the background ground. Record build time, peak memory, track size, draw calls.
+9. Full-circle check: for one point every 500 m along every route, render four views (north, east, south, west) at eye height. No view may show the end of the ground against the sky where the height model says there is land within 3 km.
+
+**Gate:** the full-circle check passes at every point; the seam check shows no gap and no step over 10 cm; `survey.py` and `elevation.py` are no worse than build 9; the track file is under 2 GB; build memory stays under 22 GB; the owner is sent four before-and-after view pairs.
+
+**Evidence:** `out/S2/renders/fullcircle/` (not in git), the seam report, the numbers from steps 2 and 8 in `PROGRESS.md`.
+
+**If it fails:** if memory or draw calls do not allow the chosen area, reduce in this order: tree density beyond 1 km from the route, terrain mesh to 12 m, the area outside the loop. Never reduce the inside of the loop below "ground and trees present". If no approach in step 4 works, record what each one did under `Blocked` and stop.

@@ -79,14 +79,14 @@ These four points are as binding as the rest of this document. The owner's words
 "Keep the smooth road surface, but get the most accurate elevation change possible. That is crucial to me." and "I care most about the bits and bumps."
 
 - The surface must be race-track smooth: no slope change over 2 % within 8 m anywhere (`koura/survey.py` measures it). Camber stays.
-- The hills must be as high and as steep as the real ones. Smoothing may remove waves shorter than about 150 m; it must never flatten a real climb, crest or valley. After any change to smoothing, compare road heights with the ground model on the main loop and write the difference in `PROGRESS.md`.
-- The ground model is only 30 m. Better height sources to try, in this order: phone GPS and barometer recordings of the owner's drives (ask for them), elevation profiles read from cycling and running tracks on public sites, a 12 m model if one can be obtained, contour lines from Lebanese topographic maps.
+- The hills must be as high and as steep as the real ones.
+- **This point is not the detail agent's work.** Road heights are reserved (`BASE.md` section 4): they are being fitted to a phone recording of the real roads. The detail agent's duty here is not to make them worse: run `koura/survey.py` and `koura/elevation.py` after every stage 2 build and compare with build 9 (`BASE.md` section 6).
 
 ### 2. Real houses, not generic models
 
 "Try to get images of the homes to put them in, or structure around them, so the road actually feels like or reminds you of when you drive on it in real life, so you know the direction better rather than it being just regular models."
 
-- The aim is recognition: the owner should know where he is from the buildings alone.
+- The aim is recognition: the owner should know where they are from the buildings alone.
 - For every building that faces a route (level 1: every building in the box), find a photograph: street-level imagery, the owner's dashcam video, social media, business listings, real estate listings. Use it for the right number of floors, roof shape and colour, wall colour and material, balconies, the ground-floor shop front and its sign, the boundary wall and gate.
 - Where a usable front-on photograph exists, rectify it and use it as the facade texture. Where it does not, model the shape and colours from what can be seen and from the aerial image.
 - Landmarks (churches, schools, municipality, petrol stations, well-known shops and restaurants, the statue at the Btouratij junction) get an individual model. They are the navigation points; do them first on every stretch.
@@ -96,14 +96,14 @@ These four points are as binding as the rest of this document. The owner's words
 
 "The dead parts of the map in the center where there is no terrain should be filled with grass and olive trees."
 
-- Today the ground exists only within about 250 m of the roads; the middle of the loop is empty. Fill it: every place the driver can see from any road must have ground, with grass and olive groves where the aerial image shows them. This is stage 3 ground at background quality (work package 10), but it must exist before the detail passes are judged.
+- Today stage 2 ground is the stage 1 box, a strip 250 m either side of each named route and a 450 m disc on six village centres (`inputs/zone.json`); the middle of the loop is empty. Fill it: every place the driver can see from any road must have ground, with grass and olive groves where the aerial image shows them. This is work package 14. The ground is background quality, but it must exist before the detail passes are judged.
 - From any point on a route, turn the camera through a full circle. If the edge of the world or sky shows where land should be, it is not done.
 
 ### 4. Accurate vegetation and walls
 
 "Vegetation and walls must also be accurate. The scenery needs to feel very real."
 
-- Trees stand where the aerial image shows them, in rows where the groves are in rows, at the right density. Olive, pine, cypress, oak, citrus and palm are told apart. The base places too few olives; fix that from the image, not from the canopy model alone.
+- Trees stand where the aerial image shows them, in rows where the groves are in rows, at the right density. Olive, pine, cypress, oak, citrus and palm are told apart. The base places trees from a canopy height model (20,326 olives, 7,371 pines, 5,469 oaks, 6,057 shrubs in stage 2), which gives approximate positions and guessed species. Compare with the image grove by grove and correct from the image.
 - Stone terrace walls, garden walls, retaining walls beside the road, fences and gates are traced from the aerial image and street-level photographs, at the right height and material. A road cut into a hillside has its retaining wall; a road above a field has its drop and its low wall.
 - Check each stretch against a photograph or a video frame of the same place, side by side, and keep the pair in `evidence/` (outside the public repository if it contains imagery).
 

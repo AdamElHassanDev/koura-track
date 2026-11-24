@@ -91,6 +91,8 @@ cache/  out/              not in git
 
 ## 5. Order and parallel lanes
 
+**Superseded on 2026-11-24.** The order now in force is in `BASE.md` section 8. The text below is kept to show which packages depend on which.
+
 ```
 WP0 setup and baseline
  ├─ lane A: WP1 game launch spike and probe
@@ -116,7 +118,7 @@ Lanes A to D touch different files except `pipeline.py` and `buildings.py`, wher
 1. Find code by searching for the quoted text in `specs/`, not by line number. Line numbers there are from commit `d9e713c` and shift after the first edit.
 2. Run `python -m pytest -q` in the fork after every change. Tests run offline.
 3. Every build goes through `koura/build.py`, never the bare CLI, so the origin is always pinned.
-4. Every build is followed by `koura/verify_static.py`. A work package is not done until its gate in `WORK-PACKAGES.md` passes and the evidence file exists.
+4. Every build is followed by `koura/verify_static.py` (until it exists: the interim checks in `BASE.md` section 3). A work package is not done until its gate in `WORK-PACKAGES.md` passes and the evidence file exists.
 5. Back up the game's `cfg/race.ini` before touching it and restore it afterwards, every time, including on failure.
 6. Never write into the game folder except: the track folder under `content/tracks/`, the probe app under `apps/lua/koura_probe/`, and `steam_appid.txt`.
 7. Do not stop to ask the owner. Each open question has a default in `PROGRESS.md`; use it and record that you did.

@@ -1,6 +1,6 @@
 # Koura free-roam map for Assetto Corsa
 
-Start with `handoff/START_HERE.md`. It links everything else. `handoff/RUN.md` says how to work: one work package per session, in a fixed order.
+Start with `handoff/START_HERE.md`. It links everything else. `handoff/BASE.md` describes what exists today and the order of work. `handoff/RUN.md` says how to work: one work package per session.
 
 Rules that hold for the whole project:
 
@@ -18,3 +18,6 @@ Rules that hold for the whole project:
 - Git: commits show only the owner (`AdamElHassanDev`), with no AI attribution of any kind. See the Git section of `handoff/RUN.md`.
 - Keep the public pages current: add a `CHANGELOG.md` entry for every build the owner receives, and tick `ROADMAP.md` when a work package passes its gate.
 - Owner's additions of 2026-11-23 (in `handoff/DETAIL-STANDARD.md`): smooth roads with real elevation, recognisable houses from photographs, no dead ground inside the loop, accurate vegetation and walls.
+- Road heights are reserved (`handoff/BASE.md` section 4): do not change how road heights or road smoothing are computed until `handoff/PROGRESS.md` has a row "Road-height reserve lifted". Plan-view road changes and everything beside the road are open.
+- Never store an absolute height. Every added object is placed by latitude and longitude and takes its height from the terrain at build time; heights above ground are fine.
+- The owner drives the map while work goes on (`handoff/BASE.md` section 5): one large build at a time, stop builds by process id only, never install while the game is running, never start the game unless the owner says it is free, `recordings/owner/` is read only.

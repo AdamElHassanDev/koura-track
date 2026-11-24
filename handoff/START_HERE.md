@@ -1,6 +1,6 @@
 # Start here
 
-Written 2026-11-23 after a research pass. Nothing has been built except one trial track.
+Written 2026-11-23 after a research pass, updated 2026-11-24. **A drivable base of the whole stage 2 ground now exists** (build 9, installed in the game as `koura_preview`). `BASE.md` describes it; read it straight after this file. The sections below are the original research and are still true except where `BASE.md` says otherwise.
 
 ## Goal
 
@@ -12,17 +12,18 @@ A free-roam Assetto Corsa map of the owner's home area in Koura, North Lebanon: 
 2. **So the job is to fork and adapt openlaps, not to write a generator.** The other two projects supply the parts openlaps lacks: an in-game test probe, a track-file validator, and photo-to-facade code.
 3. **The hard problems are scale and source data**, not the file format. openlaps is tuned for a few km². The named villages span about 70 km². Elevation is only available at 30 m.
 
-4. **A drivable preview of the whole stage 2 network already exists** (`poc/koura_preview/`, built 2026-11-23 with quick patches). The owner wants it used as the starting base; `RUN.md` says how.
+4. **The base is the fork in `openlaps/` plus `koura/build.py`**, not the early preview. The preview patch in `evidence/preview_patch.diff` is history: it is already part of the fork and must not be applied again.
 
 ## Read in this order
 
 | File | What it holds |
 |---|---|
+| `BASE.md` | **What exists today**, what the owner said after each drive, what is reserved, how to share the machine, and the order of work |
 | `FINDINGS.md` | Measured facts: the area, the data sources, this machine, the trial build |
 | `PLAN.md` | The three stages, design decisions, existing tools used, order of work, rules |
 | `RUN.md` | How to run this with a coding agent: one work package per session, the exact prompt to paste, when to stop |
 | `DETAIL-STANDARD.md` | The level of detail the owner expects, in their words, with the list of what "everything" means and which sources may be used |
-| `WORK-PACKAGES.md` | Fourteen work packages with steps, gates, evidence and fallbacks |
+| `WORK-PACKAGES.md` | Fifteen work packages (WP0 to WP14) with steps, gates, evidence and fallbacks |
 | `VERIFY.md` | The checks every build must pass, with exact pass conditions |
 | `inputs/recent_places.json` | New shops and changes the map sources are too old to show; the owner adds to it |
 | `inputs/zone.json` | Editable stage extents, origin, spawn point and the loop route |
@@ -35,6 +36,8 @@ A free-roam Assetto Corsa map of the owner's home area in Koura, North Lebanon: 
 | `evidence/` | Trial build log and images |
 
 ## Honest expectations
+
+Written before the base existed. Stage 1 and stage 2 now build; what remains is in `BASE.md` section 8.
 
 - **Stage 1, Btouratij and Nakhle (work packages 0 to 5):** about six sessions, one work package each. A Lebanon-styled, drivable map of about 3.6 by 4.1 km (10 km²), every small road included, with 0.5 m aerial ground texture.
 - **Stage 2, the 25.6 km loop, its shortcut, the Tourza road, the Dabbousi Farms road and the Karting Mania kart track (work packages 6, 7 and 11):** depends on the performance work and on a part of openlaps its author has not tested in the game. Fallbacks are written into the plan.

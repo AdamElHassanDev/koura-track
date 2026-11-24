@@ -31,6 +31,20 @@ Search again before starting work package 9: the same search (`yt-dlp "ytsearch2
 
 Limits of online video: no GPS, so each drive has to be located on the map from landmarks; older videos show the village as it was; drone videos edited with cuts, music-video pacing or zooms will not reconstruct in 3D, though they are still good for counting floors and reading roofs.
 
+## Recording the owner is making now (expected within days of 2026-11-24)
+
+The owner will drive the loop and the side roads with a phone and put the files in `recordings/owner/`. Expected contents:
+
+| File | What it is | Who uses it |
+|---|---|---|
+| A zip exported from the app Sensor Logger | CSV files: location (GPS), barometer (pressure), orientation, all with timestamps | The road-height work (`BASE.md` section 4). Not the detail agent |
+| A video from the phone's normal camera app, 1080p, filmed on the same drive | Forward view of the whole drive | The detail agent: houses, walls, signs, trees, junction layouts (WP9, WP12, WP13) |
+
+- The video and the sensor zip are two separate files. Line them up by time: the video file's creation time (read it with `ffprobe -show_entries format_tags=creation_time`) against the timestamps in the location CSV. With that, every video frame has a latitude and longitude, which removes the need to locate the drive from landmarks.
+- Not verified: whether the app keeps recording while the camera app is in front. If the sensor files have a gap, there may be two drives instead, one for each. Then the video has no positions and must be located from landmarks.
+- The files are the owner's. Read only. Never commit them, never upload them, never commit frames cut from them.
+- Check `recordings/owner/` at the start of every WP9, WP12 and WP13 session. When the video is there, it is the first source for every road it covers, ahead of the online videos below.
+
 ## New recordings by the owner: what each one changes
 
 | Recording | What it fixes | How reliable |

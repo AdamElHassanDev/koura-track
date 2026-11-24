@@ -22,23 +22,36 @@ State how each item was checked: static, render, probe, or owner drove it.
 | 2026-11-23 | Known open problems for the next session | 1. Through-road and sigma changes did not move the numbers; the Tourza spur and Nakhle small loop are the roughest. 2. Two bare ground slivers remain between the split carriageways at the junction at local x=500, y=-3672 (34.2974, 35.8349); the hole filler did not catch them. 3. Junction shapes are untouched: wide patches, no real geometry. Needs per-junction work from imagery (WP8/WP12). 4. Kart track: walls, kerbs, colour, timing, real slope. 5. Missing houses (about 1 in 10). 6. Hills too gentle in places: owner has not said where | |
 | 2026-11-23 | Owner drove the fourth build | "Better, but still the bumps on the highway are very strong, especially the ones that go down then up", near junctions; the Aaba highway junction "horrible"; "all highways map wide". Wants the road surface "super smooth", compared to Spa, camber kept; "I care most about the bits and bumps"; elevation changes as accurate as possible | **Owner drove it** |
 | 2026-11-23 | Road smoothness: cause found and fixed, seventh build installed as `koura_preview` | Tools: `koura/grade.py` (slope wobble on a stretch), `koura/survey.py` (walks every OSM road on the built mesh; output `handoff/evidence/survey.json`, worst first with lat/lon). Fixes in the fork: `RoadNetwork._alisar_red` (one smoothing spline over the whole network, `KOURA_SPLINE_L` 45 m; streets stay smooth through junctions and share junction heights), run again after `_merge_forks` with the overlapping part of hairpin and fork legs held at their shared height (before: 2-3 m pits with a 12 m ramp); `KOURA_BANDA` 0.5 m (merge pass no longer pulls roads 1.6 m apart together); `KOURA_PERFIL` 3 (longer profile filter, measured as little effect). `build.py connect_crossings` found 0 unconnected crossings. Test stages `A` (highway strip) and `P` (Kousba hairpin) build in under a minute | Share of length with a slope change over 2% in 8 m / over 5%, build 5 -> build 7: primary 1.3/0.3 -> 0.4/0.0; secondary 1.5/0.5 -> 0.6/0.0; tertiary 1.8/0.4 -> 0.9/0.0; residential 1.9/0.5 -> 1.2/0.2. Worst kink on the map 45% -> 13.7%. Aaba highway stretch (loop 15.3-17.4 km) worst 15.8% -> 7.4% left lane, 8.0% right. Target for "Spa smooth": nothing over 2%. **Not loaded in game yet** |
-| 2026-11-23 | Next on smoothness | Work down `survey.json` from the top with the test-stage method: build a small stage round the spot with `KOURA_DUMP`, compare designed `e.Z` with the mesh, fix the stage that adds the kink. Known left: junction patches on the Aaba highway stretch (7-8%), right-lane holes there (10.9% of that lane has no road under a 1.5 m offset: the two bare slivers between carriageways), short residential stubs | |
+| 2026-11-23 | Next on smoothness (**reserved**: road-height work only, see `BASE.md` section 4; not for the detail agent) | Work down `survey.json` from the top with the test-stage method: build a small stage round the spot with `KOURA_DUMP`, compare designed `e.Z` with the mesh, fix the stage that adds the kink. Known left: junction patches on the Aaba highway stretch (7-8%), right-lane holes there (10.9% of that lane has no road under a 1.5 m offset: the two bare slivers between carriageways), short residential stubs | |
 | 2026-11-23 | Eighth build installed as `koura_preview`; repo public | Hole filler now grows the road outline by 0.5 m before looking for holes (the two bare slivers at the Aaba highway junction were not quite enclosed): 78 holes paved, 10,797 m2. Check a few of the larger ones: some may be real islands or yards. Smoothness unchanged from build 7. Repo: https://github.com/AdamElHassanDev/koura-track with `README.md`, `koura/setup.sh` (not run end to end on a fresh machine; the patch was checked to apply to the pinned commit) and the OSM snapshot `koura/data/osm_koura.json`. `gh` is in `.bootstrap/gh/bin/gh`, logged in as the owner | `KN5 OK`, 11 pit markers, no `vivo.lua`; junction checked in a top-down render of test stage `A`. **Not loaded in game yet** |
 | 2026-11-24 | Ninth build installed as `koura_preview`: real heights restored, bridges as road | Owner drove build 8: surface and junctions better, but hills flattened. Cause: the profile filter multiplier (`KOURA_PERFIL` 3) and a 45 m network spline. Now `KOURA_PERFIL` 1, `KOURA_SPLINE_L` 30. New tool `koura/elevation.py`: road against the raw 30 m model, loop climb 417 m against 458 m (the model includes roofs and trees), difference RMS 0.68 m, max 4.4 m; other routes RMS 0.25 to 0.87 m. Smoothness cost: primary 0.9 % of length over 2 % in 8 m (was 0.4 %), residential 1.5 % (was 1.2 %), worst 15.3 %. Bridges are built as ordinary road (`KOURA_PUENTES` 0): the separate decks skipped every smoothing pass and left a ground band across the road at the Aaba bridge; side walls of bridges are gone as a result. Limit reached: the road now follows the 30 m model, so remaining height errors are the model's. No finer free model exists for Lebanon; paid 5 m (Airbus WorldDEM Neo) is roughly 550 to 1,100 euros for the area. Next: the owner records the roads with a phone (Sensor Logger: location, barometer, orientation; export to `recordings/owner/`), then fit road profiles to it. File checks only (KN5 OK, 11 pit boxes); not driven. |
-| 2026-11-23 | WP0 Setup and baseline | Partly done: environment, fork, OSM snapshot (covers S2, not all of S3). Not done: `pytest`, baseline table, `verify_static.py`, `config.toml` | |
-| | WP1 Game launch spike and probe | Not started | |
-| | WP2 Export fixes | Not started | |
-| | WP3 Lebanon profile | Not started | |
-| | WP4 Aerial imagery reader | Not started | |
-| | WP5 Zone build and **stage 1** | Not started | |
-| | WP6 Performance work | Not started | |
-| | WP7 **Stage 2**, the loop | Not started | |
+| 2026-11-24 | Handoff prepared for the detail agent | New `BASE.md` (state of the base, owner's words after each drive, reserved code, shared-machine rules, order of work). New WP14 (ground inside the loop). Road heights reserved until a row here says "Road-height reserve lifted". Stale instructions corrected in `START_HERE.md`, `RUN.md`, `PLAN.md`, `VERIFY.md`, `DETAIL-STANDARD.md`, `DASHCAM.md`. Open: shortcut climbs 47 m against 65 m in the model, not explained; owner's verdict on build 9 pending | Documents only |
+| 2026-11-23 | WP0 Setup and baseline | Partly done: environment, fork, OSM snapshot (covers S2, not all of S3). Not done: `pytest`, baseline table, `verify_static.py`, `config.toml`. **Next** | |
+| | WP1 Game launch spike and probe | Not started. Only in a session where the owner says the game is free | |
+| | WP2 Export fixes | First version in use: edge wall and colliders kept, no live-mode script, 11 start points. Not done: rename to group `limite`, gate | |
+| | WP3 Lebanon profile | First version in use: region `lb`, flat roofs, tanks, stone colours, olives. Lane and pavement widths deliberately left at defaults. Gate not run | |
+| | WP4 Aerial imagery reader | First version in use: `XYZRaster`, zoom 18, lazy. The `ortofoto lb_xyz:` summary line and gate not done | |
+| | WP5 Zone build and **stage 1** | S1 builds in 3 minutes from `zone.json` with the pinned origin. Render viewpoints and gate not done | |
+| | WP6 Performance work | Not started, except a memory cap and a coarser merge grid on large stages. Frame rate never measured | |
+| | WP7 **Stage 2**, the loop | S2 builds in 17 to 20 minutes and is installed (build 9). Gate not run | |
 | | WP8 OSM ids and override files | Not started | |
 | | WP9 Footage and recordings | Online videos listed, not downloaded or watched | |
 | | WP10 Stage 3 and detail passes | Not started | |
-| | WP11 Karting Mania kart track | Located on aerial imagery (34.3261, 35.8525); not traced | |
+| | WP11 Karting Mania kart track | Traced (`koura/kart_pts.py`, about 1.5 m accuracy) and built as one surface on one plane. Not done: walls, kerbs, colour, pit building, timing, own layout, real slope | |
 | | WP12 Btouratij and Nakhle fine-detail pass | Not started | |
 | | WP13 Detail pass outside the green box | Not started | |
+| | WP14 Ground inside the loop | Not started | |
+
+**Next package:** WP0 (finish it: `koura/verify_static.py`, baseline table with build 9 as the baseline, `pytest`, OSM snapshot for the stage 3 rectangle). Then WP8. Order: `BASE.md` section 8.
+
+## For the road-height work
+
+The detail agent lists here any place where the road heights look wrong, with latitude, longitude and what was seen. It does not fix them (`BASE.md` section 4).
+
+| Date | Place | What was seen |
+|---|---|---|
+| 2026-11-24 | Shortcut route, whole length | Road climbs 47 m, model 65 m (`koura/elevation.py`) |
+| 2026-11-24 | 34.30341, 35.85864 and 34.29912, 35.84988 | Slope change of 11.6 % and 11.0 % in 8 m on secondary roads (`survey.json`) |
 
 ## Baseline numbers (fill in at WP0)
 
@@ -71,6 +84,9 @@ Working launch command:
 | What frame rate and resolution should the map hold? | Median 60 at the current game settings |
 | Do you have a Mapillary token? | No; skip street-photo lookup |
 | Which online videos show which roads? | An agent locates them from landmarks |
+| Should the kart track be flat, sloped or terraced? | One plane, slope capped at 2.5 % |
+| Which hills still feel too flat or too steep after build 9? | None known; wait for the phone recording |
+| Where is the dip filmed in `recordings/owner/bumps_2026-11-23.mp4`? | Unknown; road-height work |
 
 ## Owner must check (append here whenever the game ring is unavailable)
 
