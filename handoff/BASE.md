@@ -23,7 +23,6 @@ The owner tests by driving and reports by voice, so names are spelled as heard. 
 | Build 8 | "Elevation change is critical... I have to feel like I'm driving on the road. It needs to be recognizable." |
 | Build 8, for you | "try to get the most detail visually possible... images of the homes to put them in, or structure around them, so the road actually feels like or reminds you of when you drive on it in real life, so you know the direction better rather than it being just regular models" |
 | Build 8, for you | "the dead parts of the map in the center where there is no terrain should be filled with grass and olive trees. Vegetation and walls must also be accurate... The scenery needs to feel very real." |
-
 | Build 9 | "The map definitely feels a lot better." Long straights with a steady climb feel "very flat" (example: Aaba to Kfar Hazir), while short steep climbs feel right. The road there matches the height model, so this is road-height work and waits for the phone recording |
 
 Build 9 loads and drives (owner, 2026-11-24).
