@@ -4,6 +4,12 @@ Every build that was installed in the game, newest first. "Driven" means the own
 
 Smoothness figures come from `koura/survey.py`: the share of road length where the slope changes by more than 2 % (or 5 %) within 8 m. A race-track-smooth road has none.
 
+## Koura combined preview · Karting Mania surface and edges · 2026-11-24
+
+- The same `koura_combined` track now preserves the grass gaps between nearby karting turns. It removes 1,910 m² of generated filler, including the overlapping strips that tore across the asphalt in-game. All surveyed racing triangles and the remaining road faces match the previous preview exactly.
+- Both karting edges have a narrow, blended asphalt finish. The additional model carries no collision geometry. All four wheels kept `KART` contact in the edge test.
+- CSP 0.2.11 passed 11 daylight and three night stops on the repaired map, followed by four stops with the border layer installed. Paddock access, the checker approach and the timed circuit remain open.
+
 ## Koura combined preview · 2026-11-24 · in-game probe
 
 - The private Stage 2 track `koura_combined` brings together the repaired Kousba–Tourza link, the Btouratij memorial and village centre, detailed frontages and walls, the civic bend, KNOTS, the first photo-matched Nakhle mosque model and the current shop and roof work.
