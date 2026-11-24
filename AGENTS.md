@@ -22,3 +22,4 @@ Rules that hold for the whole project:
 - Never store an absolute height. Every added object is placed by latitude and longitude and takes its height from the terrain at build time; heights above ground are fine.
 - The owner drives the map while work goes on (`handoff/BASE.md` section 5): one large build at a time, stop builds by process id only, never install while the game is running, never start the game unless the owner says it is free, `recordings/owner/` is read only.
 - Owner's addition of 2026-11-24 (`handoff/DETAIL-STANDARD.md` section 5): focus on small details. Real roundabouts and junction islands, statues and monuments, detailed buildings with signs, and walls, finished stretch by stretch.
+- When the owner's prompt says "the machine is yours", the limits on starting the game, installing and doing one package per session are lifted and all of the machine's resources may be used (`handoff/BASE.md` section 5, rule 8).

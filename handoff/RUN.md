@@ -4,7 +4,7 @@ Written for an agent that follows instructions literally. Follow it literally.
 
 ## Rules for every session
 
-1. Work on **one work package per session**. Do not start a second one in the same session unless the first is fully done and `PROGRESS.md` is updated.
+1. Work on **one work package per session**. Do not start a second one in the same session unless the first is fully done and `PROGRESS.md` is updated. Exception: when the owner's prompt says "the machine is yours", carry on through the packages in order for as long as you can, finishing, recording and committing each one before the next (`BASE.md` section 5, rule 8).
 2. At the start of a session read, in this order: `AGENTS.md`, `handoff/START_HERE.md`, `handoff/BASE.md`, `handoff/PROGRESS.md`, `handoff/PLAN.md` sections 2 and 6, `handoff/DETAIL-STANDARD.md` (for packages 8, 9, 11, 12, 13 and 14), then the one work package you are doing in `handoff/WORK-PACKAGES.md`, then the parts of `handoff/specs/` that the package names. Do not read the whole `audits/` folder; open it only when a spec points there.
 3. Do the steps in the order written. Do not redesign. If a step cannot be done as written, use the package's "If it fails" text. If that does not cover it, write what happened in `PROGRESS.md` under a heading `Blocked` and stop.
 4. Never invent a coordinate, a road or a building. Every position comes from `inputs/zone.json`, the OSM snapshot, imagery, footage or an override file.

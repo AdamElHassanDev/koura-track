@@ -166,6 +166,12 @@ The owner uses this desktop and drives the map while you work. Another agent may
 4. **Installing over `koura_preview`** is allowed at the end of a work package, when the checks pass, and when the game is not running (`pgrep -f acs.exe` prints nothing). Then add a `CHANGELOG.md` entry with the next build number. Never install while the game is running: the owner may be mid-drive.
 5. **`recordings/owner/` is read only.** Never delete, move or rename anything in it. It is ignored by git; keep it that way.
 6. **Do not start the game** unless the owner's prompt for that session says the game is free (this matters for WP1).
+8. **When the owner's prompt says "the machine is yours"**, the owner is away and nothing else is running. For that session:
+   - Rules 3, 4 and 6 are relaxed: you may start the game (so WP1, the in-game probe, can run, and you should run it first because every later package can then be checked in the game), and you may install over `koura_preview` whenever a package's checks pass.
+   - Use the whole machine: all 8 cores, the full 30 GB, the GPU, the disk, the network. Run small-stage builds, downloads, video frame extraction and image work in parallel. Use sub-agents for independent parts.
+   - Do not stop after one work package. When a package's gate passes, update `PROGRESS.md`, commit, push, move the `Next package:` line, and start the next one in the same session. Keep going until the time or the work runs out.
+   - What does not change: one stage 2 build at a time and always under `ulimit -v 22000000` (two do not fit in memory, whoever owns the machine); stop builds by process id; `recordings/owner/` is read only; road heights stay reserved; no AI attribution in git; nothing made from imagery goes to GitHub.
+   - Leave the machine as you found it: the game closed, `cfg/race.ini` restored, no build left running, and the last good build installed as `koura_preview` with a `CHANGELOG.md` entry.
 7. Tests are small stages first. Use `K`, `A`, `P`, `B`, or add a new small stage to `zone.json` for the place you are working on. Run `S2` once at the end of the work package.
 
 ## 6. The measuring tools
