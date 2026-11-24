@@ -1,5 +1,5 @@
 diff --git a/openlaps/buildings.py b/openlaps/buildings.py
-index 27deec8..81f1ac9 100644
+index 27deec8..6a860a2 100644
 --- a/openlaps/buildings.py
 +++ b/openlaps/buildings.py
 @@ -22,6 +22,7 @@ from shapely.ops import unary_union
@@ -40,7 +40,7 @@ index 27deec8..81f1ac9 100644
  
  
  def _con_overture(items, ov, to_poly, clip, log):
-@@ -320,10 +324,52 @@ def height_of(b, urban_dense):
+@@ -320,10 +324,110 @@ def height_of(b, urban_dense):
      return lv * C.LEVEL_HEIGHT + 0.3
  
  
@@ -59,6 +59,33 @@ index 27deec8..81f1ac9 100644
 +    scene.add("edificios_det", overrides.sign_material(scene, text), p, uv, f)
 +
 +
++def _add_sign_panel(scene, segment, edge, ground, top, panel):
++    """Place a shop sign on its own bay of a shared building facade."""
++    start, end = panel["span"]
++    origin, endpoint = np.asarray(edge)
++    direction = endpoint - origin
++    segment_u = (segment - origin) @ direction / (direction @ direction)
++    overlap = np.array([max(start, segment_u.min()), min(end, segment_u.max())])
++    bottom = ground + panel["bottom_m"]
++    height = min(panel["height_m"], top - 0.05 - bottom)
++    if overlap[0] >= overlap[1] or height <= 0:
++        return
++    if segment_u[0] > segment_u[1]:
++        overlap = overlap[::-1]
++    tangent = segment[1] - segment[0]
++    normal = tangent[[1, 0]] * [1, -1] / np.linalg.norm(tangent)
++    corners = origin + overlap[:, None] * direction + 0.018 * normal
++    pos, uv, faces = wall_strip(np.column_stack([corners, [bottom, bottom]]), height, both=False)
++    uv[:, 0] = np.tile((overlap - start) / (end - start), 2)
++    uv[:2, 1] = 1 - height / panel["height_m"]
++    uv[2:, 1] = 1
++    if "photo" in panel:
++        material = overrides.photo_material(scene, panel["photo"])
++    else:
++        material = overrides.sign_material(scene, panel["text"])
++    scene.add("edificios_det", material, pos, uv, faces)
++
++
 +def _detailed_wall(scene, bot, height, ground, top, fallback, details):
 +    """Split only walls with authored decorations, preserving ordinary wall UVs."""
 +    lengths = np.linalg.norm(np.diff(bot[:, :2], axis=0), axis=1)
@@ -73,7 +100,7 @@ index 27deec8..81f1ac9 100644
 +        uv[:, 1] = (ground - p[:, 2]) / 3.0
 +        mat = fallback
 +        if match is not None:
-+            _, detail, u = match
++            edge, detail, u = match
 +            if "photo" in detail:
 +                mat = overrides.photo_material(scene, detail["photo"])
 +                if detail["fit"] == "stretch":
@@ -81,7 +108,38 @@ index 27deec8..81f1ac9 100644
 +                    uv[:, 1] = (top + C.PARAPET - p[:, 2]) / height
 +            if "text" in detail and u[0] <= 0.5 < u[1]:
 +                _add_fascia(scene, segment[:, :2], ground, top, detail["text"])
++            if "panel" in detail:
++                _add_sign_panel(scene, segment[:, :2], edge, ground, top, detail["panel"])
 +        scene.add("edificios", mat, p, uv, f, phys="WALL")
++
++
++def _gable_roof(scene, building, ground, eave_height, wall_mat, roof_mat):
++    """Build two pitched surfaces and the triangular end walls of a surveyed roof."""
++    outline = np.asarray(building["wall_outline"][:-1])
++    corners = np.roll(outline, -building["gable_edge"], axis=0)
++    gables = corners.reshape(2, 2, 2)
++    lengths = np.linalg.norm(gables[:, 1] - gables[:, 0], axis=1)
++    rise = lengths * 0.25
++    ridges = np.column_stack([gables.mean(axis=1), eave_height + rise])
++    eaves = np.column_stack([corners, np.full(len(corners), eave_height)])
++
++    for start, end in ((1, 2), (3, 0)):
++        start_gable = start // 2
++        pos = np.vstack([eaves[start], eaves[end], ridges[1 - start_gable], ridges[start_gable]])
++        length = np.linalg.norm(pos[1, :2] - pos[0, :2])
++        slope = np.linalg.norm(pos[3] - pos[0])
++        uv = np.array([[0, 0], [length, 0], [length, slope], [0, slope]]) / 2.0
++        scene.add("edificios", roof_mat, pos, uv, np.array([[0, 1, 2], [0, 2, 3]]))
++
++    details = building.get("wall_details", {})
++    for i, gable in enumerate(gables):
++        pos = np.vstack([eaves[2 * i:2 * i + 2], ridges[i]])
++        uv = np.column_stack([[0, lengths[i] / 4, lengths[i] / 8], (ground - pos[:, 2]) / 3])
++        scene.add("edificios", wall_mat, pos, uv, np.array([[0, 1, 2]]), phys="WALL")
++        panel = details.get(tuple(map(tuple, gable)), {}).get("panel")
++        if panel is not None and ground + panel["bottom_m"] >= eave_height:
++            usable_rise = 2 * rise[i] * min(panel["span"][0], 1 - panel["span"][1])
++            _add_sign_panel(scene, gable, gable, ground, eave_height + usable_rise, panel)
 +
 +
  def build(scene, buildings, terrain, log=print):
@@ -90,11 +148,11 @@ index 27deec8..81f1ac9 100644
 -        poly = b["poly"].simplify(0.25)
 +        details = b.get("wall_details")
 +        # Keep the original vertex sequence on walls addressed by an override.
-+        poly = b["poly"] if details else b["poly"].simplify(0.25)
++        poly = b["poly"] if details or "gable_edge" in b else b["poly"].simplify(0.25)
          if poly.is_empty or poly.geom_type != "Polygon" or poly.area < 6:
              continue
          poly = shapely.geometry.polygon.orient(poly, 1.0)
-@@ -376,13 +422,17 @@ def build(scene, buildings, terrain, log=print):
+@@ -376,19 +480,27 @@ def build(scene, buildings, terrain, log=print):
          rc = textures.parse_colour(tg.get("roof:colour"))
          roof_mat = textures.roof_material(scene, rc, pitched) if rc else None
          # muros (exterior hacia afuera) + pretil
@@ -117,7 +175,17 @@ index 27deec8..81f1ac9 100644
              if pitched or (nave and shape != "flat"):
                  continue
              # cara interior del pretil
-@@ -426,6 +476,48 @@ def build(scene, buildings, terrain, log=print):
+             inner = np.column_stack([pts[::-1], np.full(len(pts), top)])
+             p, uv, f = wall_strip(inner, C.PARAPET, u_scale=4.0, v_scale=3.0, both=False)
+             scene.add("edificios", mat, p, uv, f, phys="WALL")      # misma malla que el muro: una llamada menos
++        if shape == "gabled" and "gable_edge" in b:
++            fallback_roof = f"tejado_{int(_h((i, 'r')) * len(R.roof_colors)) % len(R.roof_colors)}"
++            _gable_roof(scene, b, ground, top + C.PARAPET, mat, roof_mat or fallback_roof)
++            continue
+         if nave and shape != "flat" and _hip_roof(scene, poly, top, roof_mat or "chapa", pitch=0.16, eave=0.25):
+             continue
+         # bloques de pisos (3 o más plantas): faldones tendidos que desde la calle apenas asoman
+@@ -426,6 +538,48 @@ def build(scene, buildings, terrain, log=print):
      log(f"  edificios construidos: {len(buildings)}, tinacos: {n_tinaco}")
  
  
@@ -626,10 +694,10 @@ index 0000000..f731925
 +    return coverage
 diff --git a/openlaps/koura_building_overrides.py b/openlaps/koura_building_overrides.py
 new file mode 100644
-index 0000000..386c513
+index 0000000..2799195
 --- /dev/null
 +++ b/openlaps/koura_building_overrides.py
-@@ -0,0 +1,312 @@
+@@ -0,0 +1,339 @@
 +"""Footprint, roof, facade and sign overrides for the baked Koura stages."""
 +
 +import hashlib
@@ -687,11 +755,11 @@ index 0000000..386c513
 +    return value
 +
 +
-+def _image(directory, value):
++def resolve_photo(directory, value):
 +    if not isinstance(value, str) or not value.strip():
 +        raise ValueError("expected an image path relative to the override file")
 +    path = (directory / value).resolve()
-+    if Path(value).is_absolute() or not path.is_relative_to(directory):
++    if Path(value).is_absolute() or not path.is_relative_to(directory.resolve()):
 +        raise ValueError("image path must stay within the override directory")
 +    if not path.is_file():
 +        raise ValueError(f"image missing: {value}")
@@ -707,6 +775,17 @@ index 0000000..386c513
 +    if edge[0] == edge[1]:
 +        raise ValueError("edge has zero length")
 +    return tuple(edge)
++
++
++def _panel(placement, edge):
++    _keys(placement, {"center", "width_m", "height_m", "bottom_m"})
++    center, width, height, bottom = (placement.get(key) for key in ("center", "width_m", "height_m", "bottom_m"))
++    if not all(map(_number, (center, width, height, bottom))) or width <= 0 or height <= 0 or bottom < 0:
++        raise ValueError("sign panel needs a fractional center, positive dimensions, and nonnegative bottom_m")
++    half = width / (2 * math.dist(*edge))
++    if not 0 <= center - half < center + half <= 1:
++        raise ValueError("sign panel must fit its wall edge")
++    return {"span": (center - half, center + half), "height_m": height, "bottom_m": bottom}
 +
 +
 +def _details(building, entry, directory):
@@ -736,8 +815,15 @@ index 0000000..386c513
 +        tags["name"] = name
 +
 +    outline = building.get("wall_outline")
-+    if outline is None and ("facades" in entry or "sign" in entry):
++    if outline is None and ("facades" in entry or "sign" in entry or "gable_edge" in entry):
 +        outline = tuple(orient(building["poly"], 1.0).exterior.coords)
++    if "gable_edge" in entry:
++        gable_edge = entry["gable_edge"]
++        _wall_index(gable_edge, outline)
++        poly = building["poly"]
++        if tags.get("roof:shape") != "gabled" or len(outline) != 5 or not poly.equals(poly.convex_hull):
++            raise ValueError("gable_edge requires a gabled roof on a convex four-sided footprint")
++        updates["gable_edge"] = gable_edge
 +    walls = {edge: dict(detail) for edge, detail in building.get("wall_details", {}).items()}
 +    if "facades" in entry:
 +        if not isinstance(entry["facades"], list):
@@ -752,20 +838,29 @@ index 0000000..386c513
 +            if edge in seen:
 +                raise ValueError("multiple facades target the same edge")
 +            seen.add(edge)
-+            walls.setdefault(edge, {}).update(photo=_image(directory, facade.get("image")), fit=fit)
++            walls.setdefault(edge, {}).update(photo=resolve_photo(directory, facade.get("image")), fit=fit)
 +
 +    if "sign" in entry:
 +        sign = entry["sign"]
-+        _keys(sign, {"edge", "text", "image"})
++        _keys(sign, {"edge", "text", "image", "panel"})
 +        edge = _wall_index(sign.get("edge"), outline)
 +        text = sign.get("text")
 +        if text is not None and (not isinstance(text, str) or not text.strip()):
 +            raise ValueError("sign text must be a non-empty string")
 +        detail = walls.setdefault(edge, {})
-+        if "image" in sign:
++        if "panel" in sign:
++            panel = _panel(sign["panel"], edge)
++            if "image" in sign:
++                panel["photo"] = resolve_photo(directory, sign["image"])
++            elif text:
++                panel["text"] = text
++            else:
++                raise ValueError("sign panel requires text or an image")
++            detail["panel"] = panel
++        elif "image" in sign:
 +            if "photo" in detail:
 +                raise ValueError("a facade image and a shopfront image target the same edge")
-+            detail.update(photo=_image(directory, sign["image"]), fit="stretch")
++            detail.update(photo=resolve_photo(directory, sign["image"]), fit="stretch")
 +        elif text:
 +            detail["text"] = text
 +        else:
@@ -838,7 +933,7 @@ index 0000000..386c513
 +        if item.get("osm_id") is not None:
 +            by_id.setdefault(item["osm_id"], []).append(k)
 +    removed = set()
-+    editable = set(TAG_FIELDS) | METADATA | {"facades", "sign"}
++    editable = set(TAG_FIELDS) | METADATA | {"facades", "sign", "gable_edge"}
 +
 +    def find_point(entry):
 +        point = Point(_local(proj, entry.get("lat"), entry.get("lon")))
@@ -860,7 +955,7 @@ index 0000000..386c513
 +        return bool(matches)
 +
 +    def update(entry, matches):
-+        if len(matches) > 1 and ("facades" in entry or "sign" in entry):
++        if len(matches) > 1 and (entry.keys() & {"facades", "sign", "gable_edge"}):
 +            raise ValueError("the OSM id has multiple footprints; use by_point for a wall-specific edit")
 +        updated = [_details(items[k], entry, path.parent) for k in matches]
 +        for k, replacement in zip(matches, updated):
@@ -1493,10 +1588,10 @@ index 0000000..6a3d1fb
 +    return {**osm, "ways": list(ways.values())} if counts["applied"] else osm
 diff --git a/openlaps/koura_scenery.py b/openlaps/koura_scenery.py
 new file mode 100644
-index 0000000..a2ce4b7
+index 0000000..c9ee739
 --- /dev/null
 +++ b/openlaps/koura_scenery.py
-@@ -0,0 +1,472 @@
+@@ -0,0 +1,477 @@
 +"""Build surveyed Koura scenery from geographic coordinates and relative dimensions."""
 +
 +import json
@@ -1510,6 +1605,7 @@ index 0000000..a2ce4b7
 +from shapely.geometry import LineString, Point, Polygon, box
 +from shapely.ops import substring
 +
++from .koura_building_overrides import photo_material, resolve_photo
 +from .roads import box_mesh, iter_polys, triangulate_polygon
 +from .textures import png
 +
@@ -1881,7 +1977,11 @@ index 0000000..a2ce4b7
 +        raise ValueError("provide either model or shape")
 +    if "model" in entry:
 +        pos, uv, faces = _model(directory, entry["model"])
-+        parts = [(_material(scene, entry.get("material", "limestone")), pos * size, uv, faces)]
++        if "image" in entry:
++            material = photo_material(scene, resolve_photo(directory, entry["image"]))
++        else:
++            material = _material(scene, entry.get("material", "limestone"))
++        parts = [(material, pos * size, uv, faces)]
 +    else:
 +        parts = _shape(scene, entry["shape"], size)
 +    reference = entry.get("anchor", "auto")
@@ -3620,3 +3720,58 @@ index 665c867..43810f0 100644
              open_land = c in (C.WC_SHRUB, C.WC_GRASS, C.WC_BARE, C.WC_CROP)
              from .regions import map_species
              kind = map_species("maguey" if open_land and (proj.lat0 > 22 or z > 1700) and r < 0.4 else "arbusto")
+diff --git a/tests/test_koura_building_overrides.py b/tests/test_koura_building_overrides.py
+new file mode 100644
+index 0000000..e7a88f5
+--- /dev/null
++++ b/tests/test_koura_building_overrides.py
+@@ -0,0 +1,49 @@
++import json
++
++import numpy as np
++from shapely.geometry import Polygon, box
++
++from openlaps import buildings
++from openlaps.koura_building_overrides import apply
++from openlaps.mesh import Scene
++
++
++class LocalCoordinates:
++    def to_local(self, lon, lat):
++        return lon, lat
++
++
++class LevelGround:
++    def height(self, x, y):
++        return np.zeros_like(x)
++
++
++def test_authored_sign_fits_the_gable_wall(tmp_path):
++    footprint = Polygon([(0, 0), (8, 0), (8, 12), (0, 12)])
++    original = {"poly": footprint, "tags": {"building": "yes"}, "osm_id": "w1", "height": None}
++    overrides = {
++        "by_osm_id": {
++            "w1": {
++                "levels": 1,
++                "roof": "gabled",
++                "gable_edge": 0,
++                "sign": {
++                    "edge": 0,
++                    "text": "Cafe",
++                    "panel": {"center": 0.5, "width_m": 3, "height_m": 1, "bottom_m": 4},
++                },
++            },
++        },
++    }
++    path = tmp_path / "buildings.json"
++    path.write_text(json.dumps(overrides), encoding="utf-8")
++    updated = apply([original], path, LocalCoordinates(), box(-1, -1, 13, 13), lambda _: None)
++    scene = Scene()
++    buildings.build(scene, updated, LevelGround(), log=lambda _: None)
++    (sign,) = [piece for (group, material, physics), pieces in scene.pieces.items()
++               if group == "edificios_det" and material.startswith("fachada_rotulo_")
++               and physics is None for piece in pieces]
++    np.testing.assert_allclose(sign.pos[:, 0], [2.5, 5.5, 2.5, 5.5])
++    np.testing.assert_allclose(sign.pos[:, 1], -0.018)
++    np.testing.assert_allclose(sign.pos[:, 2], [4.95, 4.95, 4, 4])
++    np.testing.assert_allclose(sign.uv[:, 1], [0.05, 0.05, 1, 1])

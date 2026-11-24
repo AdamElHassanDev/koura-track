@@ -42,14 +42,25 @@ State how each item was checked: static, render, probe, or owner drove it.
 | 2026-11-24 | WP6 Performance work | Stage 1 gate passed. Distant ground stays covered, detailed collision survives and estimated p95 draw calls fell from 1,523 to 853. | Static VERIFY 6 and 10, matched renders, and **in-game probe**. Details below. |
 | | WP7 **Stage 2**, the loop | S2 builds in 17 to 20 minutes and is installed (build 9). Gate not run | |
 | 2026-11-24 | WP8 OSM ids and override files | Gate passed on the Btouratij memorial junction test build. All five override files are wired up, and road edges carry the source way IDs. | Before/after renders, network sidecars, fork tests and **in-game probe**. Details below. |
-| | WP9 Footage and recordings | Online videos listed, not downloaded or watched | |
+| 2026-11-24 | WP9 Footage and recordings | Ten-view Btouratij gate passed. The footage informed the bilingual direction sign, workshop façades and boundary gates. Three sourced storefronts were added to the private Stage 2 candidate. | Ten matched renders and **in-game probes**. See the WP9 record below. |
 | | WP10 Stage 3 and detail passes | Not started | |
 | 2026-11-24 | WP11 Karting Mania kart track | Survey preview built with a variable-width 811 m trace, sourced kerb and paddock barriers. Timing and exactness gate blocked. | Static, source comparison, 12-position render sheet and **in-game probe** at 41 positions. Details below. |
 | | WP12 Btouratij and Nakhle fine-detail pass | Not started | |
 | | WP13 Detail pass outside the green box | Not started | |
 | 2026-11-24 | WP14 Ground inside the loop | Ground and grove pipeline built. Aaba gate passed for terrain with preserved roads. The full gate remains blocked. | Export geometry, full-circle and grove renders, and **in-game probe** on Aaba. Details below. |
 
-**Next package:** WP9. Order: `BASE.md` section 8.
+**Next package:** WP12. Order: `BASE.md` section 8.
+
+## WP9 Footage and storefronts
+
+- The ten-pair sheet in `out/S1/compare/wp9-btouratij-main-street.jpg` was sent to the owner. Views cover 00:02 to 00:43 of Saed Alhassan’s June 2020 tour, from Tripoli Street to the memorial and the village approach. Camera positions, bearings and lenses are estimates from visible landmarks. All ten cameras landed on the built road without a horizontal adjustment. The 2024 aerial shows the newer hipped memorial-house roof used in the map. The drill-down and candidate inventory are in `out/WP9/main-street/`.
+- The tour yielded 1,021 one-second frames after a near-duplicate check. The reviewed anchors are in `recordings/online/8gIn9XWJ_4Y/route.json`. Three drone review copies are local for May 2022, August 2022 and March 2023. The reviewed orbit uses cuts and changes exposure, and its downloaded copy has a transport gap. There is no registered reconstruction or new owner GPS. Further video coverage and drone footprint matches remain open for WP12 and WP13.
+- The gate build added two workshop façades, four wall sections and two closed gates over 47.7 m, and a photographed bilingual sign and its post from the street tour. Winner Force and Nosh Café each use an existing footprint and a photographed sign. Nosh has its observed red gable and dark end wall. Spinneys uses a 1,792 m² roof trace, the photographed lettering, revised corner cladding and reconstructed glazing. One old shed was removed. The source counts and links are in `out/WP9/source-inventory.json` and `inputs/recent_places.json`.
+- Stage 1 took about 2 min and peaked at 8.52 GiB RSS. All 139 protected road primitives match the previous Stage 1 byte for byte. The six-point Stage 1 probe on the preceding workshop revision passed at 429 median FPS. The final comparison build’s static estimate was 857 p95 against the cap of 853.
+- Stage 2 took 16 min 36 s and peaked at 13.28 GiB RSS with zero build swap. All 455 road primitives match the WP6 Stage 2 baseline byte for byte. `survey.py` reports 0.9%, 1.0%, 1.2%, 0.9% and 1.5% for primary, secondary, tertiary, unclassified and residential at the 2% threshold. The loop still climbs 417 m. Reports are in `out/WP9/S2/verify/` and `road-geometry.json`.
+- CSP 0.2.11 b3465 passed all seven Stage 2 probe stops at 385 median and 356 minimum FPS. The final direction sign, memorial, Nosh and Spinneys are visible in `out/WP9/S2/ingame/wp9-live-views.jpg`. Winner Force’s panel was verified in the export. The road in front of its façade is outside the available drivable pavement at that spot, so the in-game probe skipped the storefront. The game exited and the original `race.ini` checksum matched.
+- The Stage 2 release verifier reported 11 passes, seven failures and two unavailable checks. Draw-call p95 was 1,189 against the cap of 853. Road seams, slope break slivers, traffic, route coverage, lengths and connectivity are also open. Build 9 remains installed as `koura_preview`. Both stages produced zero street lamps because the stock generator requires sidewalks. Surveyed lamp placement belongs to WP12 and night validation remains open.
+- System swap rose from about 110 MiB to 166 MiB during the package builds and to 782 MiB during the first, overlapping Stage 2 verification and Steam startup. That run was stopped. The user-session file cache was reclaimed with swapping disabled for the reclaim operation. The isolated verifier took 50 s, peaked at 6.01 GiB RSS and used zero swap. Global page-outs did not increase during the isolated retry or the game probe.
 
 ## WP8 override gate
 
@@ -188,4 +199,7 @@ The initial attempt exited 53 with `SteamAPI_Init() failed; connect to global us
 | Where is the dip filmed in `recordings/owner/bumps_2026-11-23.mp4`? | Unknown; road-height work |
 
 ## Owner must check (append here whenever the game ring is unavailable)
+
+- **WP9.** The stage candidates contain the Btouratij direction sign and workshop walls, as well as Winner Force, Nosh Café and Spinneys. Check the estimated signpost and workshop gate positions against current street photos. Spinneys’ forecourt still uses the older ground imagery.
+- **WP9.** The Knots opening and contractor’s render confirm the venue and the yellow frontage. Its exact actual footprint is still open. Clutch N’ Carb has a confirmed showroom pin and interior reference. Stories Coffee has a branch listing and a road pin. Neither frontage could be reliably matched to a street-facing wall. The latest questions and linked sources are recorded in `inputs/recent_places.json`.
 

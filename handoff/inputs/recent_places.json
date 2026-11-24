@@ -8,26 +8,35 @@
  "places": [
   {
    "name": "Knots",
-   "kind": "shop",
-   "village": "Btouratij area (inside the 1 km trial square centred on 34.3616, 35.8390)",
+   "kind": "commercial and leisure complex",
+   "village": "Btouratij, Tripoli–Kousba Main Road",
    "lat": null,
    "lon": null,
    "side_of_road": null,
-   "opened": "recent, per owner 2026-11-23",
-   "sign_text": "Knots",
-   "status": "Owner drove the trial on 2026-11-23: the entrance road to Knots exists and is right, but there is no building. So the access road is in OpenStreetMap and the building is missing from the footprint data. Add the building under `add` in buildings.json. Exact position still needed: find it in the newest Btouratij videos, or from the owner.",
-   "new_building": true
+   "opened": "opening reported 2026-09-20",
+   "sign_text": "KNOTS",
+   "status": "Opening and contractor references confirm the name, main road and distinctive yellow and blue frontage. The access is present per the owner’s trial drive. The property and building orientation still need matching to recent imagery before placement.",
+   "new_building": true,
+   "sources": [
+    "https://www.eidengineering.com/projects",
+    "https://twitter.com/elie_al_khoury/status/2101664660999061785"
+   ]
   },
   {
    "name": "Clutch N' Carb",
    "kind": "car dealership with a coffee shop",
    "village": "Bechmizzine",
-   "lat": null,
-   "lon": null,
+   "lat": 34.3077544,
+   "lon": 35.8083779,
    "side_of_road": null,
-   "opened": "unverified; assumed recent",
+   "opened": "open by 2023-09-17",
    "sign_text": "Clutch N' Carb",
-   "status": "on the Bishmizzine to Amioun shortcut road per listings; exact position needed"
+   "status": "Showroom pin and main road confirmed. The 2023 footage shows a large metal-roofed hall. The street-facing wall and sign position still need matching across the forecourt.",
+   "sources": [
+    "https://www.clutchncarb.com/",
+    "https://anaba3ref.com/shop/car-showrooms/clutch-n-carb-qalamoun",
+    "https://www.youtube.com/watch?v=TsupJswuzX8"
+   ]
   },
   {
    "name": "Karting Mania",
@@ -37,8 +46,76 @@
    "lon": 35.8525,
    "opened": "before 2022; not new, but absent from OpenStreetMap",
    "sign_text": "Karting Mania",
-   "status": "located on aerial imagery; built by work package 11"
+   "status": "Aerial survey preview tested in CSP. The exact timed layout remains open in WP11."
+  },
+  {
+   "name": "Winner Force Kousba",
+   "kind": "sportswear shop",
+   "village": "Kousba",
+   "lat": 34.3043333333,
+   "lon": 35.8553333333,
+   "opened": "2025-04",
+   "sign_text": "WINNER FORCE",
+   "new_building": false,
+   "status": "Official pin and storefront matched to the street-facing wall of the adjacent mapped footprint. The private override places the photographed sign on one storefront bay.",
+   "sources": [
+    "https://winnerforce-lb.com/pages/kousba",
+    "https://winnerforce-lb.com/pages/store-locator-1",
+    "https://www.beirut.com/en/781756/the-story-behind-winnerforce-one-of-lebanons-beloved-sportswear-brands/"
+   ]
+  },
+  {
+   "name": "Spinneys The Hub",
+   "kind": "supermarket",
+   "village": "Amioun",
+   "lat": 34.2992323,
+   "lon": 35.8163876,
+   "opened": "2026-07",
+   "sign_text": "Spinneys / THE HUB",
+   "floors": 3,
+   "status": "Maliks inside the store provides the verified pin. A newer satellite view shows the new approximately 1,792 m² roof and the replaced shed. The private override uses the traced exterior, reconstructed blue glass and yellow trim, and lettering rectified from the opening photo. The contractor night photo shows white signs and warm fascia lighting. Check the forecourt surface during the ground-texture pass.",
+   "sources": [
+    "https://www.gmrlgroup.com/NewsDetails/spinneys-amioun",
+    "https://maliks.com/pages/find-a-store",
+    "https://maps.app.goo.gl/bJafkodrq2wwUmTX8",
+    "https://leb.business/en/article/spinneys-opens-in-amioun-creating-150-jobs-in-north-lebanon",
+    "https://em2lb.com/",
+    "https://www.google.com/maps/@34.2992323,35.8163876,19z/data=!3m1!1e3"
+   ],
+   "new_building": true
+  },
+  {
+   "name": "Stories Coffee",
+   "kind": "cafe",
+   "village": "Amioun",
+   "lat": 34.2986625,
+   "lon": 35.820640625,
+   "opened": "reported 2025-10",
+   "sign_text": "Stories",
+   "status": "Official listing confirms the Amioun branch. Ehden Road Plus Code 7RXC+F76 points to the edge of a vacant plot in the accessible current satellite view. Identify the occupied unit or newer build from a street-level photo.",
+   "sources": [
+    "https://storiescoffee.com/",
+    "https://worldcafemap.com/en/lebanon/tripoli/stories-amioun",
+    "https://internationalfrozenyogurt.com/october-froyo-openings-and-closings/"
+   ]
+  },
+  {
+   "name": "Nosh Cafe",
+   "kind": "cafe",
+   "village": "Kfar Hazir",
+   "lat": 34.3056956,
+   "lon": 35.7777087,
+   "opened": "open by 2025",
+   "sign_text": "NOSH CAFÉ",
+   "status": "Business-attributed photo matched to the existing red-roofed footprint beside the spur. The private override includes the black gable front and photographed sign.",
+   "sources": [
+    "https://wenrayhin.com/en/places/nosh-cafe-kfar-hazir",
+    "https://www.foodyas.com/LB/Kfar-Haz%C3%AEr/476144202259273/Nosh-Cafe",
+    "https://www.beirut.com/ar/686034/12-%D9%85%D8%AD%D9%84-frozen-yogurt-%D8%AD%D9%88%D9%84-%D9%84%D8%A8%D9%86%D8%A7%D9%86/"
+   ],
+   "floors": 1,
+   "new_building": false
   }
  ],
- "entry_fields": "name, kind, village, lat, lon (or a description of where), side_of_road (left or right when driving in a stated direction), opened, sign_text, floors, new_building (true if the building itself is new, false if a shop opened in an existing building), photo (file under recordings/photos/)"
+ "entry_fields": "name, kind, village, lat, lon (or a description of where), side_of_road (left or right when driving in a stated direction), opened, sign_text, floors, new_building (true if the building itself is new, false if a shop opened in an existing building), photo (file under recordings/photos/), sources (public reference links), status (what was confirmed and what needs checking)"
 }

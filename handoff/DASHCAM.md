@@ -101,3 +101,13 @@ recordings/
 2. **Frames to overrides.** Extract one frame every 10 m of travel using the GPS track for position. Review frames per road and fill `koura/overrides/roads.json` (width, lanes, surface, markings, bumps, roadside walls) and `koura/overrides/buildings.json` (floors, roof type, colour).
 3. **Facades.** For a chosen wall, pick the four wall corners in a frame, straighten with a homography, and store the result as that wall's texture. road-to-assetto's `photo_projection.py` refuses fits with more than 3 px error; keep that strictness.
 4. **Road texture.** Use frames to choose and tint tiling asphalt and concrete materials. Do not project video onto the road.
+
+For a drive without GPS, record each chosen frame's `time_s`, `lat`, `lon`, true `bearing_deg`, and `image` in a local JSON manifest with a `source` URL and a `frames` list. Add `camera_height_m`, `pitch_deg` and horizontal `fov_deg` when estimated from landmarks. Frame paths are relative to the manifest. Build the paired sheet with:
+
+```bash
+.venv/bin/python koura/footage/compare.py out/S1/koura.glb recordings/online/<video-id>/views.json out/S1/compare/main-street.jpg
+```
+
+The renderer takes the camera level from the exported asphalt and records the horizontal distance used to snap each view to the road. Keep the manifest, images, comparison sheet, and pose evidence with the private footage.
+
+For a facade or sign texture, use `koura/footage/rectify.py PHOTO CONTROLS_JSON OUTPUT` with the `road-to-assetto/` checkout from [REFERENCES.md](REFERENCES.md). The controls file gives `image_points_px`, the corresponding `rectified_points_px`, and `output_size_px`. Use at least four measured points in the same order. Add independent points when possible to check the fit. Save the source and the texture in the private directories.

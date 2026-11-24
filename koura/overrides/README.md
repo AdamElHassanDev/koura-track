@@ -4,8 +4,11 @@ The build reads these five JSON files by default. Use `koura/build.py S1 --overr
 
 - `roads.json` merges OSM tags from objects keyed by way ID. `add` takes an ID, tags and a lat/lon node list whose ends snap within 3 m. `remove` lists IDs. `move` maps IDs to new node lists while preserving shared junctions. The road sidecar records the resulting way IDs.
 - `buildings.json` supports `by_osm_id` (prefix ways with `w` and relations with `r`), `by_point`, `add`, and `remove`. Building detail fields include `levels`, `roof`, `colour`, `roof_colour`, and `facades`. A facade has a zero-based exterior `edge`, an `image`, and a `fit` of `stretch` or `tile`. Added buildings use their authored ring order. Existing footprints use the exterior counterclockwise order. A `sign` can reference a shopfront image or provide `text` for a fascia.
+  Add `sign.panel` for a sign on a single storefront bay. Set `center` as a fraction along the existing `edge` and give `width_m`, `height_m`, and `bottom_m` above ground. The `sign.image` should contain the sign face. A separate facade image can cover the underlying wall.
+  For a four-sided footprint with `roof: "gabled"`, `gable_edge` selects the facade at one end of the roof ridge. A panel above the eave can sit on either triangular end wall.
 - `walls.json` entries have an `id`, a lat/lon `line`, `height_m`, `material`, optional `thickness_m`, and `collider`. Give each gate gap a `start_m` and `end_m` measured along the line.
 - `landmarks.json` entries have an `id`, location, `heading_deg`, `size_m`, `collider`, and either a local model or a shape. Model JSON contains vertices in footprint fractions and zero-based triangular faces, with vertical coordinates relative to the placement base. Shapes can combine boxes, cylinders, cones, and ellipsoids.
+  A model with explicit `uv` coordinates can use a local `image` for a sign or plaque.
 - `junctions.json` accepts surveyed roundabouts and `island_junction` outlines. Supply lat/lon rings for irregular islands and splitters. Set the sloped kerb to at most 8 cm. Islands and their monuments sample the finished asphalt.
 
 Include `source` and `state` for each surveyed wall, landmark or junction. An entry marked `todo` is skipped. The build logs matches, rejected records and the amount of wall built.
