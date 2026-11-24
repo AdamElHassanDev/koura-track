@@ -4,6 +4,12 @@ Every build that was installed in the game, newest first. "Driven" means the own
 
 Smoothness figures come from `koura/survey.py`: the share of road length where the slope changes by more than 2 % (or 5 %) within 8 m. A race-track-smooth road has none.
 
+## Koura combined preview · 2026-11-24 · in-game probe
+
+- The private Stage 2 track `koura_combined` brings together the repaired Kousba–Tourza link, the Btouratij memorial and village centre, detailed frontages and walls, the civic bend, KNOTS, the first photo-matched Nakhle mosque model and the current shop and roof work.
+- The 811 m surveyed Karting Mania surface replaces the earlier uniform-width loop. The preview includes one surveyed kerb and two divider runs. Venue scenery, paddock access and a timed lap remain open.
+- CSP 0.2.11 passed 11 daylight and three night stops. All four wheels registered as `KART` at the three karting stops. Lights were visible on the Btouratij street and at the KNOTS entrance. The wider release gate remains open.
+
 ## Koura Btouratij civic bend review · 2026-11-24 · in-game probe
 
 - The separate `koura_btouratij_civic` review includes the corrected entrance and mosque frontages, the municipality's photographed pointed sign and doors, the red tower across the bend, and the blue direction signs at the fork.
