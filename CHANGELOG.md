@@ -4,6 +4,13 @@ Every build that was installed in the game, newest first. "Driven" means the own
 
 Smoothness figures come from `koura/survey.py`: the share of road length where the slope changes by more than 2 % (or 5 %) within 8 m. A race-track-smooth road has none.
 
+## Koura storefront and footage candidate · 2026-11-24 · in-game probe
+
+- Installed as a separate private review track, `koura_wp9_s2`. Start in Btouratij to see the photographed bilingual direction sign, the workshop façades and gates, and the surveyed memorial island and railing.
+- Nosh Café, Winner Force Kousba and Spinneys The Hub have sourced signs. Spinneys has a new traced footprint and glazing.
+- All seven CSP 0.2.11 test stops passed. All 455 road meshes match the earlier Stage 2 export byte for byte.
+- Build 9 remains the regular preview. The full release checks, timed kart layout and night lighting are open.
+
 ## Build 9 · 2026-11-24 · driven
 - **Real heights restored.** Build 8 had flattened the hills. The road now follows the height model: on the main loop it climbs 417 m against 458 m in the raw model (which also counts roofs and trees), and differs from it by 0.7 m on average.
 - Bridges are built as ordinary road, which removes the band of ground across the road at the Aaba bridge. Bridge side walls are gone for now.
