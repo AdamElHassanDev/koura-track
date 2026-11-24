@@ -26,3 +26,7 @@ handoff/evidence/karting_mania_aerial.png
 handoff/evidence/amioun_esri_z18_osm_overlay.jpg
 handoff/evidence/*top_down*.jpg
 handoff/evidence/btouratij_poc_c*.jpg
+
+# pinned reference checkouts (WP0)
+mapcreator/
+road-to-assetto/

@@ -33,7 +33,7 @@ State how each item was checked: static, render, probe, or owner drove it.
 | 2026-11-24 | Recorded GPS found on the routes | 99 public OpenStreetMap traces tagged with Lebanese place names downloaded and filtered by position. Four run along named routes and carry elevation (traces 177810, 177811, 185647 from 2008, 471726 from 2009; copies in `recordings/public_traces/`, not in git). Together they cover the loop from km 0.25 to 18, the whole shortcut and the Tourza spur from km 0.75 to 5. Compared in 250 m sections after removing each trace's constant offset: they match the built road with a spread of 1.2 to 4.1 m. Aaba to Kfar Hazir: GPS and road rise by the same amount on every straight (for example km 5.25 to 8.0: GPS 25 m, road 24 m; km 8.25 to 9.5: GPS 45 m, road 41 m). So recorded data confirms the map on the long straights. Places where GPS and road differ by more than 6 m: loop km 10.0 to 10.75 (road up to 10 m lower than GPS, from 34.3071, 35.7754 to 34.3030, 35.7819, between Kfar Hazir and Amioun), shortcut km 4.0 (GPS 13 m higher in one section), Tourza spur km 5.0 (GPS 11 m higher at the end). Old consumer GPS without a pressure sensor: good for rise over a few hundred metres, not for bumps | Computed; no new build |
 | 2026-11-24 | Owner on the kart track | "needs to be super accurate. Right now, not so much." WP11 moved up to third in the order (after WP0 and WP8) and given explicit accuracy targets | Owner said so after driving build 9 |
 | 2026-11-24 | Owner gives the detail agent the machine for a day | Written as `BASE.md` section 5 rule 8, switched on by the words "the machine is yours" in the prompt: game may be started, installs allowed, packages chained, all resources used | Owner said so |
-| 2026-11-23 | WP0 Setup and baseline | Partly done: environment, fork, OSM snapshot (covers S2, not all of S3). Not done: `pytest`, baseline table, `verify_static.py`, `config.toml`. **Next** | |
+| 2026-11-24 | WP0 Setup and baseline | Stock trial rebuilt at 2, 3 and 4 m from the pinned upstream revision. Static verification and the Build 9 comparison are in use. OSM snapshot covers S3 + 300 m. | Static, `out/poc/verify.json`, `out/S2/verify.json`, `cache/wp0_osm/validation.log`. Fork tests: 142 passed, 1 skipped in 5.97 s. |
 | 2026-11-24 | WP1 Game launch spike and probe | Gate passed on the Btouratij trial. Direct GE-Proton9-20 opened Assetto Corsa, loaded CSP 0.2.11 b3465 and ran the unopened Lua probe. | **In-game probe**, `out/poc/ingame/report.json`, raw logs and screenshots. |
 | | WP2 Export fixes | First version in use: edge wall and colliders kept, no live-mode script, 11 start points. Not done: rename to group `limite`, gate | |
 | | WP3 Lebanon profile | First version in use: region `lb`, flat roofs, tanks, stone colours, olives. Lane and pavement widths deliberately left at defaults. Gate not run | |
@@ -49,7 +49,7 @@ State how each item was checked: static, render, probe, or owner drove it.
 | | WP13 Detail pass outside the green box | Not started | |
 | | WP14 Ground inside the loop | Not started | |
 
-**Next package:** WP0 (finish it: `koura/verify_static.py`, baseline table with build 9 as the baseline, `pytest`, OSM snapshot for the stage 3 rectangle). Then WP8. Order: `BASE.md` section 8.
+**Next package:** WP8. Order: `BASE.md` section 8.
 
 ## For the road-height work
 
@@ -62,16 +62,33 @@ The detail agent lists here any place where the road heights look wrong, with la
 | 2026-11-24 | Shortcut route, whole length | Road climbs 47 m, model 65 m (`koura/elevation.py`) |
 | 2026-11-24 | 34.30341, 35.85864 and 34.29912, 35.84988 | Slope change of 11.6 % and 11.0 % in 8 m on secondary roads (`survey.json`) |
 
-## Baseline numbers (fill in at WP0)
+## Baseline measurements
 
-| Measure | Trial track, unmodified |
-|---|---|
-| Steps and seams per km of road | |
-| Holes | |
-| Grade breaks per km | |
-| Draw calls, median / p95 | |
-| Meshes / triangles / texture MB | 680 / 831,849 / 50 |
-| Collider meshes in game export | expected 0 |
+Build 9 remains the regression reference for road smoothness and loop climb. The stock Btouratij trial supplies the terrain-resolution references for steps, seams and steep triangles in VERIFY 7 and 8.
+
+| Measure | Stock trial 2 m | Stock trial 3 m | Stock trial 4 m | Build 9, S2 at 3 m |
+|---|---:|---:|---:|---:|
+| Built road km | 8.246 | 8.246 | 8.246 | 197.419 |
+| Step sites per km | 507.41 | 504.14 | 510.93 | 387.26 |
+| Seam sites per km | 3.76 | 3.76 | 3.76 | 2.26 |
+| Hole cells / sites | 797 / 236 | 797 / 236 | 797 / 236 | 16,216 / 3,259 |
+| Steep triangles per km | 86.83 | 86.83 | 86.83 | 138.96 |
+| Grade-break vertex pairs per km | 0 | 0 | 0 | 0.64 |
+| Build peak RSS (GiB) | 1.33 | 1.29 | 1.29 | Historical, not measured this session |
+
+| Export measure | Stock trial 2 m | Build 9 |
+|---|---:|---:|
+| KN5 meshes / triangles | 681 / 823,913 | 11,253 / 11,745,810 |
+| Texture count / MB | 293 / 49.51 | 4,215 / 319.67 |
+| KN5 file MB | 78.93 | 751.80 |
+| Draw calls median / p95 | 180 / 358 | 1,339 / 3,944 |
+| Invisible physics meshes before the WP2 group split | 0 | 787 in the shared group |
+
+Trial rebuilds took 15 to 22 s with the warm cache and produced 40 junctions, 210 built buildings and 8.246 km of roads. The isolated upstream worktree kept the Koura fork and its road profiles intact. The tiled surface scanner matched the stock tool at 2 m (273,153 step cells, 655 seam edges and 797 hole cells) and limited the S2 verification peak to 5.31 GiB with zero swap use. The complete Build 9 report took 50.83 s. The stock trial report has eight passes, two expected failures, five failures and five not-applicable checks. Its network capture found four disconnected components, including 380 m and 182 m components at the edge of the stock trial. The Build 9 report has ten passes, one expected failure, three failures and six unavailable checks. Build 9 still fails the zero-hole, steep-triangle and traffic checks. The trial intentionally retains the stock live-mode script and expected WP2 and WP6 failures. Legacy Build 9 has no recorded network and no imagery counter line, so the corresponding checks report unavailable. Build 9 had 20,326 olives and 6,153 buildings for 6,175 in-zone footprints.
+
+Build 9 retained all nine class values for distance with a slope change greater than 2% in 8 m. Residential 1.5%, primary 0.9%, unclassified 0.9%, secondary 1.0%, tertiary 1.2%, service 0.8%, track 0.6%, primary link 2.5%, secondary link 0.0%. Loop climb reproduced at 417 m against 458 m in the model. The Build 9 survey output matched byte-for-byte after extending the OSM cache.
+
+OSM fetched 2026-11-24 across four quarter-boxes. Bounds are south 34.275386, west 35.757862, north 34.390064, east 35.906938. Overpass supplied the southwest quarter; the official OSM map API supplied the other three. The single tracked snapshot has 4,937 unique elements, including all 4,326 original Build 9 records. The established stages retain their original records because the generator solves road profiles over the full input graph before clipping. S3 and new stages can use all records.
 
 ## Game ring answers
 

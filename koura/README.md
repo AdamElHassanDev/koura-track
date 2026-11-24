@@ -14,6 +14,13 @@ The project's own code. The map generator itself lives in `openlaps/` (created b
 | `elevation.py` | Compares each route's heights and total climb with the raw height model. |
 | `survey.py` | Walks every road of the map and lists the worst places with coordinates. |
 
+The tracked OSM snapshot covers the S3 rectangle plus 300 m. The
+`build9_road_scope` metadata identifies the original records used by the
+existing stages while road heights are reserved. Those stages keep the
+original graph inputs because road profiles are solved before zone clipping.
+S3 and new stages use the full snapshot. To run `survey.py` from a fresh
+checkout, copy the snapshot to `cache/osm_koura.json` first.
+
 ## Stages
 
 Defined in `handoff/inputs/zone.json`.

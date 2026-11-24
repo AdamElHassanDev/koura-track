@@ -1,0 +1,39 @@
+ac_root = "/mnt/Linux_HDD/SteamLibrary/steamapps/common/assettocorsa"
+ac_docs = "/mnt/Linux_HDD/SteamLibrary/steamapps/compatdata/244210/pfx/drive_c/users/steamuser/Documents/Assetto Corsa"
+cache = "cache"
+
+# Stock openlaps Btouratij trial, at each terrain resolution.
+[verification.surface."2"]
+road_km = 8.245736443541988
+step_sites = 4184
+seam_sites = 31
+steep_triangles = 716
+grade_break_pairs = 0
+
+[verification.surface."3"]
+road_km = 8.245736443541988
+step_sites = 4157
+seam_sites = 31
+steep_triangles = 716
+grade_break_pairs = 0
+
+[verification.surface."4"]
+road_km = 8.245736443541988
+step_sites = 4213
+seam_sites = 31
+steep_triangles = 716
+grade_break_pairs = 0
+
+[verification.build9]
+loop_climb_m = 417
+
+[verification.build9.slope_change_over_2_pct]
+residential = 1.5
+primary = 0.9
+unclassified = 0.9
+secondary = 1.0
+tertiary = 1.2
+service = 0.8
+track = 0.6
+primary_link = 2.5
+secondary_link = 0.0

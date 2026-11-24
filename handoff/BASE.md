@@ -41,7 +41,7 @@ What this tells you about the owner: they notice the road surface first, then ju
 | `koura/build.py` | Builds a stage. The only way to build | Yes |
 | `koura/kart_pts.py` | Karting Mania traced from the aerial image: `TRACK` (77 points, 0.246 m per pixel), `PADDOCK`, `ENTR2` | Yes |
 | `koura/survey.py`, `ride.py`, `grade.py`, `elevation.py` | Road measuring tools (section 6) | Yes |
-| `koura/data/osm_koura.json` | Map-data snapshot. Covers stage 2, not all of stage 3 | Yes |
+| `koura/data/osm_koura.json` | Map-data snapshot. Covers the stage 3 rectangle plus 300 m. Established stages retain the Build 9 input scope | Yes |
 | `koura/setup.sh` | Fresh-machine setup. Never run end to end | Yes |
 | `handoff/inputs/zone.json` | Origin, stages, routes, start points. Never change `origin` | Yes |
 | `.venv/` | Python 3.12 environment | No |

@@ -14,7 +14,7 @@ TRACK = $OUT/assetto_corsa/<id>
 
 ## Inner ring: `koura/verify_static.py <stage>`
 
-State on 2026-11-24: this script and the `koura/ac/` scripts below are not written yet (WP0 and WP1 create them). Until then use the interim checks in `BASE.md` section 3. The openlaps tools named in the table (`kn5_check.py`, `kn5_inspect.py`, `escalones.py`, `defectos.py`, `trafico_check.py`, `rendimiento_ac.py`, `render.py`, `comparar_ruta.py`) do exist in `openlaps/tools/`. Add two checks when writing the script: 19, road smoothness by `koura/survey.py`, no class worse than build 9 by more than 0.2 percentage points; 20, road climb by `koura/elevation.py`, loop climb within 5 m of build 9. Both stop applying when the road-height reserve is lifted and new reference numbers are recorded.
+WP0 implemented the static verifier and WP1 verified the in-game probe on the trial. Save build stdout and pass `--build-log` explicitly if the log is outside `out/<stage>/build.log`. Checks 19 and 20 use Build 9 as the smoothness and climb reference during the road-height reserve. Existing builds without road-network sidecars preserve their available evidence and report the remaining graph checks as unavailable.
 
 It runs each tool, parses the output, and writes `out/<stage>/verify.json` with one entry per check: name, pass or fail, the number measured, and the raw output path. It exits non-zero if any hard check fails.
 

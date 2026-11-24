@@ -7,22 +7,23 @@ Options: --res N (terrain grid, default from zone.json), --buf M (override route
 --no-imagery, --no-canopy.
 """
 import sys, os, json, math, time, subprocess
+from pathlib import Path
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 os.environ.setdefault("OPENLAPS_CACHE", os.path.join(ROOT, "cache"))
 sys.path.insert(0, os.path.join(ROOT, "openlaps")); sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import numpy as np
 from concurrent.futures import ThreadPoolExecutor
-from shapely.geometry import LineString, Point, box
-from shapely.ops import unary_union
+from shapely.geometry import Point
 from openlaps import pipeline
 from openlaps.__main__ import parser
 from openlaps.geo import BBox, LocalProjection
 from openlaps.sources import osm as OSM, rasters
 import kart_pts
+from stages import stage_zone
+from verify_network import record_network
 from openlaps import roads as _roads
 
 ZONE = json.load(open(os.path.join(ROOT, "handoff", "inputs", "zone.json")))
-V = ZONE["villages"]
 def opt(name, default=None):
     return sys.argv[sys.argv.index(name) + 1] if name in sys.argv else default
 STAGE = sys.argv[1] if len(sys.argv) > 1 and not sys.argv[1].startswith("-") else "S1"
@@ -32,46 +33,27 @@ NAME = opt("--name", "koura")
 OUT = os.path.join(ROOT, "out", STAGE)
 log = lambda *a: print(*a, flush=True)
 
-def parts_ll(stage):
-    out = []
-    for p in ZONE["stages"][stage]["parts"]:
-        if p["type"] == "stage": out += parts_ll(p["ref"])
-        elif p["type"] == "route_buffer": out.append(("line", (ZONE["routes"][p["route"]]["polyline"], BUF or p["metres"])))
-        elif p["type"] == "disc": v = V[p["village"]]; out.append(("disc", (v["lat"], v["lon"], p["metres"])))
-        elif p["type"] == "box": out.append(("box", p))
-    return out
-PARTS = parts_ll(STAGE)
-
-def zona_fn(proj):
-    gs = []
-    for k, d in PARTS:
-        if k == "box":
-            x0, y0 = proj.to_local(d["west"], d["south"]); x1, y1 = proj.to_local(d["east"], d["north"])
-            gs.append(box(float(x0), float(y0), float(x1), float(y1)))
-        elif k == "line":
-            pl, m = d
-            x, y = proj.to_local([p[1] for p in pl], [p[0] for p in pl])
-            gs.append(LineString(np.column_stack([x, y])).buffer(m, quad_segs=4))
-        else:
-            x, y = proj.to_local(d[1], d[0]); gs.append(Point(float(x), float(y)).buffer(d[2], quad_segs=8))
-    return unary_union(gs).buffer(0)
-
 # ---- pinned origin and build rectangle (local metres) from zone.json
 O = ZONE["origin"]
 rect = tuple(float(v) for v in ZONE["stages"][STAGE]["expected"]["rect_local_m"])
 proj = LocalProjection.marco(O["lat"], O["lon"], rect)
 bbox = proj.bbox()
-zona = zona_fn(proj)
+zona = stage_zone(ZONE, STAGE, proj, BUF)
 log(f"stage {STAGE}: rect {rect}, zone {zona.area / 1e6:.2f} km2 (expected {ZONE['stages'][STAGE]['expected']['zone_km2']}), origin {O['lat']},{O['lon']}")
 
 def fetch_osm():
-    cache = os.path.join(ROOT, "cache", "osm_koura.json")
-    if os.path.exists(cache):
-        return json.load(open(cache))
-    snap = os.path.join(ROOT, "koura", "data", "osm_koura.json")     # the snapshot kept in the repo
-    if os.path.exists(snap):
-        return json.load(open(snap))
-    # snapshot for the whole S3 rectangle, so every stage is fed from the same data
+    cache = Path(ROOT, "cache", "osm_koura.json")
+    snapshot = Path(ROOT, "koura", "data", "osm_koura.json")
+    for path in (snapshot, cache):
+        if path.exists():
+            data = json.loads(path.read_text())
+            # The generator smooths the full graph before clipping it. Keep
+            # the original graph inputs for the established stages.
+            baseline = data.get("build9_road_scope", {})
+            if STAGE in baseline.get("stages", ()):
+                data["elements"] = data["elements"][:baseline["element_count"]]
+            return data
+    # Recover the full S3 snapshot if neither local copy is present.
     r3 = tuple(float(v) for v in ZONE["stages"]["S3"]["expected"]["rect_local_m"])
     big = LocalProjection.marco(O["lat"], O["lon"], r3).bbox().padded(300)
     els, seen, N = [], set(), 3
@@ -269,5 +251,6 @@ if zona.contains(_kp.centroid):
     _roads.KART = {"poly": _kp, "name": "Karting Mania"}
     log(f"  Karting Mania: racing line {_kl:.0f} m, asphalt {_kp.area:.0f} m2")
 t0 = time.time()
-pipeline.run(args, proj=proj, osm_data=OSM.parse(raw))
+with record_network(_roads, Path(OUT) / f"{NAME}.roads.json", sp):
+    pipeline.run(args, proj=proj, osm_data=OSM.parse(raw))
 log(f"BUILD DONE in {time.time() - t0:.0f} s")
