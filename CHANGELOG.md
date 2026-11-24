@@ -4,6 +4,19 @@ Every build that was installed in the game, newest first. "Driven" means the own
 
 Smoothness figures come from `koura/survey.py`: the share of road length where the slope changes by more than 2 % (or 5 %) within 8 m. A race-track-smooth road has none.
 
+## Koura Btouratij village centre review · 2026-11-24 · in-game probe
+
+- The separate `koura_btouratij_centre` review includes the corrected entrance and the mosque's limestone hall, arched windows, doors, low dome and green-capped minaret. From the Btouratij start, follow the village road beyond the memorial to the mosque.
+- Five properties on each approach now have surveyed frontage work. The pass includes photographed façades, a stone-and-steel porch, open balcony arches, garden gates and rails, retaining walls, olive and conifer crowns, 562 m² of paving and a glazed corner house with physical steps.
+- The unmarked village streets now match the footage along both approaches. A lattice lamp uphill lights the road, walls and garden gate at 21:00.
+- CSP 0.2.11 passed eight daylight and two night stops, at 362 and 334 median FPS. All 139 existing road meshes match the entrance review. The wider village gate is open.
+
+## Koura Btouratij corrected entrance · 2026-11-24 · in-game probe
+
+- The separate `koura_btouratij_entrance` review contains the surveyed roadside memorial pad and railings, the sculpted salute and limestone relief, corrected road markings and the real asphalt shoulder opposite.
+- The stone garden wall stays. The memorial-side house has a second photographed face and modelled balconies, and the pale arched villa has its other visible wing.
+- Three CSP 0.2.11 stops passed at 11:00. Median frame rate was 350 FPS. All 139 existing Stage 1 road meshes match the earlier frontage review.
+
 ## Koura Btouratij frontage review · 2026-11-24 · in-game probe
 
 - Installed as the separate Stage 1 track `koura_btouratij_review`. From the Btouratij start, continue past the memorial toward the photographed shrine, palm gardens, arched villa and flat-roof carport.
