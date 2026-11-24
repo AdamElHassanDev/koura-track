@@ -4,6 +4,12 @@ Every build that was installed in the game, newest first. "Driven" means the own
 
 Smoothness figures come from `koura/survey.py`: the share of road length where the slope changes by more than 2 % (or 5 %) within 8 m. A race-track-smooth road has none.
 
+## Koura Btouratij civic bend review · 2026-11-24 · in-game probe
+
+- The separate `koura_btouratij_civic` review includes the corrected entrance and mosque frontages, the municipality's photographed pointed sign and doors, the red tower across the bend, and the blue direction signs at the fork.
+- The mosque approach now has the stone enclosure with open fencing and paved verge. Its lattice lamp lights the stone wall and road at 21:00. In the wider Btouratij core, 145 properties have reviewed roof shapes or sampled roof colours.
+- Five daylight stops and one night stop passed in CSP 0.2.11. All 139 existing road meshes match the centre review.
+
 ## Koura Kousba-Tourza link review · 2026-11-24 · in-game probe
 
 - The separate `koura_kousba_link_s2` review restores 101.6 m of Rue Al Arz east of the Kousba roundabout. The centre and both lanes have continuous collision across the former cut. The two invisible boundary crossings are gone.
