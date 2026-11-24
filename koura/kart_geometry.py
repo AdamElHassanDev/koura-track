@@ -53,8 +53,11 @@ def surveyed_geometry(data, proj):
         if new.area > 1:
             surfaces.append((new, material, physics))
         areas.append(apron)
-    return {"name": "Karting Mania", "poly": unary_union(areas), "surfaces": surfaces,
-            "length": line.length, "outline": outline}
+    paved_area = unary_union(areas)
+    # Ground between separate lanes is intentional, including the infield.
+    no_auto_fill = Polygon(outline.exterior).union(paved_area).buffer(4.0)
+    return {"name": "Karting Mania", "poly": paved_area, "surfaces": surfaces,
+            "length": line.length, "outline": outline, "no_auto_fill": no_auto_fill}
 
 
 def read_layout(path, proj):
