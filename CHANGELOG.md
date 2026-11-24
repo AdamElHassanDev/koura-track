@@ -4,6 +4,11 @@ Every build that was installed in the game, newest first. "Driven" means the own
 
 Smoothness figures come from `koura/survey.py`: the share of road length where the slope changes by more than 2 % (or 5 %) within 8 m. A race-track-smooth road has none.
 
+## Koura combined preview · Flush shoulder pilot · 2026-11-24
+
+- Three stretches in Btouratij and on the Dabbousi road have gently graded shoulders meeting the existing asphalt within about 1–2 cm. The combined map retains its network lighting.
+- CSP 0.2.11 confirmed two wheels on the shoulder and two on the road at each accepted test stop. These were stationary checks. The road-speed check and network-wide rollout remain open.
+
 ## Koura combined preview · Network street lighting · 2026-11-24
 
 - Added 5,562 copies of the warm Btouratij mosque-side lattice fixture across every built road class. The original placements are retained. The additions follow the built road network with clearance from pavement, structures and water.
