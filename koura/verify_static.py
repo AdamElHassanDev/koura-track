@@ -172,7 +172,14 @@ def verify(stage, output, name, build_log, report, baseline, config):
     imagery = re.search(r"^\s*ortofoto lb_xyz:\s*(\d+) ok,\s*(\d+) failed\b", log, re.M)
     if imagery:
         ok, failed = map(int, imagery.groups())
-        add(1, outcome(ok > 0 and failed * 100 <= ok), {"ok": ok, "failed": failed}, build_log)
+        counters = {"ok": ok, "failed": failed}
+        good = ok > 0 and failed * 100 <= ok
+        for zoom, fine_ok, fine_failed in re.findall(
+                r"^\s*ortofoto lb_xyz z(\d+):\s*(\d+) ok,\s*(\d+) failed\b", log, re.M):
+            fine_ok, fine_failed = int(fine_ok), int(fine_failed)
+            counters[f"z{zoom}"] = {"ok": fine_ok, "failed": fine_failed}
+            good &= fine_ok > 0 and fine_failed * 100 <= fine_ok
+        add(1, outcome(good), counters, build_log)
     else:
         add(1, "not_applicable" if baseline else "unavailable", {"reason": "No lb_xyz tile counters"}, build_log)
 

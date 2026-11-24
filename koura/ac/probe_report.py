@@ -20,7 +20,7 @@ def read_lines(path):
     return path.read_text(errors="replace").replace("\x00", "").splitlines()
 
 
-def report(track, directory, surfaces_ini, minimum_fps=60, expected_surfaces=ROAD_SURFACES):
+def report(track, directory, surfaces_ini, minimum_fps=60, expected_surfaces=ROAD_SURFACES, local_hour=None):
     logs = read_lines(directory / "log.txt")
     csp = read_lines(directory / "custom_shaders_patch.log")
     marker = f"Creating physics track: {track}"
@@ -48,6 +48,7 @@ def report(track, directory, surfaces_ini, minimum_fps=60, expected_surfaces=ROA
         keys = [surfaces.get(wheel["surface"]) for wheel in row["wheels"]]
         point_checks.append({
             "i": row["i"], "drift_m": drift, "wheel_gaps_m": gaps, "surface_keys": keys,
+            "local_time": row.get("local_time"),
             "lands": drift <= 3, "wheels": len(gaps) == 4 and all(-0.5 <= gap <= 1 for gap in gaps),
             "collision": row["raycast_m"] >= 0,
             "road_surface": len(keys) == 4 and all(key in expected_surfaces for key in keys),
@@ -63,6 +64,10 @@ def report(track, directory, surfaces_ini, minimum_fps=60, expected_surfaces=ROA
     }
     for key in ("lands", "wheels", "collision", "road_surface"):
         checks[key] = bool(point_checks) and all(point[key] for point in point_checks)
+    if local_hour is not None:
+        checks["local_hour"] = bool(point_checks) and all(
+            (point["local_time"] or {}).get("hour") == local_hour for point in point_checks
+        )
     return {
         "pass": all(checks.values()), "track": track, "checks": checks, "points": point_checks,
         "track_errors": track_errors, "csp_errors": csp_errors, "csp": csp_version,
@@ -77,13 +82,14 @@ def main():
     parser.add_argument("--layout")
     parser.add_argument("--minimum-fps", type=float, default=60)
     parser.add_argument("--surface", action="append", help="Required surface key (can be repeated)")
+    parser.add_argument("--local-hour", type=int, choices=range(24), help="Required in-game local hour")
     args = parser.parse_args()
     root, _, _ = game_paths()
     folder = root / "content" / "tracks" / args.track
     if args.layout:
         folder /= args.layout
     result = report(args.track, args.directory, folder / "data" / "surfaces.ini", args.minimum_fps,
-                    set(args.surface) if args.surface else ROAD_SURFACES)
+                    set(args.surface) if args.surface else ROAD_SURFACES, args.local_hour)
     (args.directory / "report.json").write_text(json.dumps(result, indent=2) + "\n")
     print(json.dumps(result, indent=2))
     raise SystemExit(0 if result["pass"] else 1)

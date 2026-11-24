@@ -45,6 +45,7 @@ local function load_points()
   points = data.points
   options.quit = data.quit or false
   options.screenshots_every = data.screenshots_every or 0
+  options.utc_timestamp = data.utc_timestamp
   return points ~= nil and #points > 0
 end
 
@@ -78,6 +79,7 @@ local function record(p)
   local ok, fps = pcall(function() return sim.fps end)
   results[#results + 1] = {
     fps = ok and fps or nil,
+    local_time = { hour = sim.timeHours, minute = sim.timeMinutes },
     i = index,
     requested = p.pos,
     position = { car.position.x, car.position.y, car.position.z },
@@ -113,6 +115,10 @@ function script.update(dt)
     if sim.isInMainMenu then
       ac.tryToStart(true)
     else
+      if options.utc_timestamp then
+        ac.setWeatherExactUTC0Timestamp(options.utc_timestamp)
+        ac.setWeatherTimeMultiplier(0)
+      end
       state = 'probing'
     end
   elseif state == 'probing' then

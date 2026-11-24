@@ -160,6 +160,14 @@ Speed bumps, street lamps, electricity poles and their wires, transformers, wate
 - For every section keep one pair: a video frame or photograph, and the render from the same position. Keep the pairs out of git.
 - Count and report in `PROGRESS.md` after each session: roundabouts and island junctions done of the total, one-off objects done of the total, buildings with a real facade of those facing routes, metres of wall built.
 
+### 6. Btouratij village interior first
+
+After driving the WP9 review, the owner reported generic house façades and missing front yards, driveways, concrete entrances and small details throughout the scene. The village interior should feel like real life from the driver’s seat. Finish the inside of Btouratij before expanding the detail pass to the rest of the map.
+
+The owner set the order for the current weekly allowance to Btouratij first, then Nakhle, then the exact timed Karting Mania circuit. They want all three finished during this allowance. The remaining map follows. Use rental-kart onboard laps where available to confirm the operating direction and identify timing and pit references.
+
+Review both sides of each street from the road to the front doors and shopfronts. Use photographed façades where the same wall can be identified, and trace the actual yard, garden edge, gate opening and paved driveway or shop forecourt. Include the small, visible things between properties, such as grates, utility fittings, signs, low kerbs, planters and trees. Check how the details line up with each other in matched driving views, including how each driveway meets the finished asphalt.
+
 ## Where the information comes from
 
 Use anything. The built map is for the owner's personal use and is never published (only the code and plan are public), so sources that cannot be redistributed are allowed. Keep every downloaded item under `recordings/online/` or `koura/overrides/facades/`, never in git.

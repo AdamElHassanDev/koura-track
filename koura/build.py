@@ -4,7 +4,7 @@ calls the fork's pipeline.  Usage (from the project root):
     (ulimit -v 21000000; .venv/bin/python koura/build.py S1)        # or S2
 
 Options: --res N (terrain grid, default from zone.json), --buf M (override route buffer), --name ID,
---no-imagery, --no-canopy, --overrides DIR, --out DIR, --fine-kart-imagery.
+--no-imagery, --no-canopy, --overrides DIR, --out DIR, --fine-ground, --fine-kart-imagery.
 Kart site: --kart-survey PATH, --kart-layout (requires surveyed timing and pit positions).
 Performance profile: --performance baseline|lod|horizon|atlas|full.
 Background ground trial: --background on stages with a background part.
@@ -12,12 +12,18 @@ Background ground trial: --background on stages with a background part.
 import sys, os, json, math, time, subprocess
 from pathlib import Path
 from functools import partial
+
+if "-h" in sys.argv or "--help" in sys.argv:
+    print(__doc__)
+    raise SystemExit(0)
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 os.environ.setdefault("OPENLAPS_CACHE", os.path.join(ROOT, "cache"))
 sys.path.insert(0, os.path.join(ROOT, "openlaps")); sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import numpy as np
 from concurrent.futures import ThreadPoolExecutor
-from shapely.geometry import Point
+from shapely.geometry import Point, box
+from shapely.ops import unary_union
 from openlaps import pipeline
 from openlaps.__main__ import parser
 from openlaps.geo import BBox, LocalProjection
@@ -218,12 +224,12 @@ def kart_polygon():
     poly = unary_union([ring.buffer(kart_pts.TRACK_WIDTH_M / 2, join_style=1), Polygon(loc(kart_pts.PADDOCK))]).buffer(0)
     return poly, ring.length
 
-def prefetch_imagery(ground):
-    """Download every zoom 18 tile under the zone (plus 150 m) in parallel, so the build only reads from disk."""
-    r = rasters.XYZRaster("lb_xyz", log=log)
-    z = ground.buffer(150)
+def prefetch_imagery(ground, raster=None, padding=150):
+    """Download the aerial tiles needed to paint a ground polygon."""
+    r = raster if raster is not None else rasters.XYZRaster("lb_xyz", log=log)
+    z = ground.buffer(padding)
     x0, y0, x1, y1 = z.bounds
-    lon, lat = proj.to_lonlat(np.array([x0, x1]), np.array([y0, y1]))
+    lon, lat = proj.to_lonlat(np.array([x0, x0, x1, x1]), np.array([y0, y1, y0, y1]))
     px, py = r.tiles_for_lonlat(lon, lat)
     txs = range(int(px.min() // 256), int(px.max() // 256) + 1); tys = range(int(py.min() // 256), int(py.max() // 256) + 1)
     import shapely
@@ -233,12 +239,13 @@ def prefetch_imagery(ground):
             lo = (tx + 0.5) / r.n * 360 - 180
             la = math.degrees(math.atan(math.sinh(math.pi * (1 - 2 * (ty + 0.5) / r.n))))
             cx, cy = proj.to_local(lo, la)
-            if z.distance(Point(float(cx), float(cy))) < 130:
+            if z.distance(Point(float(cx), float(cy))) < 130 / 2 ** (r.z - 18):
                 todo.append((tx, ty))
     t0 = time.time()
     with ThreadPoolExecutor(8) as ex:
         res = list(ex.map(lambda t: r.fetch_tile(*t) is not None, todo))
-    log(f"  imagery prefetch: {sum(res)} of {len(todo)} tiles on disk in {time.time() - t0:.0f} s")
+    label = "imagery prefetch" if r.z == 18 else f"imagery prefetch z{r.z}"
+    log(f"  {label}: {sum(res)} of {len(todo)} tiles on disk in {time.time() - t0:.0f} s")
     return sum(res), len(todo)
 
 argv = ["--bbox", f"{bbox.south},{bbox.west},{bbox.north},{bbox.east}", "--modo", "libre", "--ac", "--res", RES, "--mpp", "0.5",
@@ -278,14 +285,23 @@ if "--background" in sys.argv:
 args.koura_overrides = Path(opt("--overrides", Path(ROOT, "koura", "overrides"))).resolve()
 if "--overrides" in sys.argv and not args.koura_overrides.is_dir():
     raise SystemExit(f"Override directory does not exist: {args.koura_overrides}")
-if (TIMED_KART or "--fine-kart-imagery" in sys.argv) and not args.sin_orto:
-    fine = ZONE["fine_boxes"]["karting_mania"]
-    sw = proj.to_local(fine["west"], fine["south"])
-    ne = proj.to_local(fine["east"], fine["north"])
-    args.koura_fine_ground = {
-        "fine_boxes": [(*sw, *ne)],
-        "fine_ortho": rasters.XYZRaster("lb_xyz", log=log, zoom=19),
-    }
+fine_keys = []
+if "--fine-ground" in sys.argv:
+    fine_keys = ["btouratij_core", "nakhle_core", "karting_mania"]
+elif TIMED_KART or "--fine-kart-imagery" in sys.argv:
+    fine_keys = ["karting_mania"]
+fine_boxes = []
+if not args.sin_orto:
+    for key in fine_keys:
+        fine = ZONE["fine_boxes"][key]
+        west, east, south, north = (fine[k] for k in ("west", "east", "south", "north"))
+        x, y = proj.to_local([west, west, east, east], [south, north, south, north])
+        bounds = (float(x.min()), float(y.min()), float(x.max()), float(y.max()))
+        if zona.intersects(box(*bounds).buffer(args.tesela * math.sqrt(2))):
+            fine_boxes.append(bounds)
+    if fine_boxes:
+        fine_ortho = rasters.XYZRaster("lb_xyz", log=log, zoom=19)
+        args.koura_fine_ground = {"fine_boxes": fine_boxes, "fine_ortho": fine_ortho}
 kart_path = Path(opt("--kart-survey", args.koura_overrides / "karting_mania.json"))
 kart_data = None
 if kart_path.is_file():
@@ -316,6 +332,10 @@ args.spawns = [tuple(float(v) for v in proj.to_local(s["lon"], s["lat"])) for s 
 for i, s in enumerate(sp): log(f"slot {i}: {s['name']}")
 os.environ.setdefault("KOURA_CELDA", "0.5" if zona.area < 12e6 and (rect[2] - rect[0]) * (rect[3] - rect[1]) < 30e6 else "1.5")
 if "--no-imagery" not in sys.argv: prefetch_imagery(zona)
+if fine_boxes:
+    margin = args.tesela * math.sqrt(2)
+    fine_area = unary_union([box(*bounds) for bounds in fine_boxes]).buffer(margin).intersection(zona.buffer(margin))
+    prefetch_imagery(fine_area, raster=fine_ortho, padding=0)
 raw = connect_crossings(inject_kart(fetch_osm()))
 from openlaps import config as _C
 _C.CURB_HEIGHT = 0.05      # owner: kerbs were too high and broke the car; low enough to ride over
