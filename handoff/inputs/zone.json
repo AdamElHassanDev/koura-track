@@ -145,6 +145,14 @@
     },
     {
      "type": "box",
+     "south": 34.3040014,
+     "west": 35.8543036,
+     "north": 34.3046326,
+     "east": 35.8564207,
+     "note": "Keep Rue Al Arz between Kousba roundabout and the Tourza road inside Stage 2 (OSM way 712040784)."
+    },
+    {
+     "type": "box",
      "south": 34.3247,
      "west": 35.8511,
      "north": 34.3287,

@@ -4,6 +4,12 @@ Every build that was installed in the game, newest first. "Driven" means the own
 
 Smoothness figures come from `koura/survey.py`: the share of road length where the slope changes by more than 2 % (or 5 %) within 8 m. A race-track-smooth road has none.
 
+## Koura Kousba-Tourza link review · 2026-11-24 · in-game probe
+
+- The separate `koura_kousba_link_s2` review restores 101.6 m of Rue Al Arz east of the Kousba roundabout. The centre and both lanes have continuous collision across the former cut. The two invisible boundary crossings are gone.
+- Three CSP 0.2.11 stops passed on the restored stretch and its joins. Median frame rate was 394 FPS. The grade survey matches Build 9 and the loop still climbs 417 m.
+- This road-test build uses the existing Stage 2 storefront scenery. The newer entrance and mosque are in the Btouratij village centre review.
+
 ## Koura Btouratij village centre review · 2026-11-24 · in-game probe
 
 - The separate `koura_btouratij_centre` review includes the corrected entrance and the mosque's limestone hall, arched windows, doors, low dome and green-capped minaret. From the Btouratij start, follow the village road beyond the memorial to the mosque.
