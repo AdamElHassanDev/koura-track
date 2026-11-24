@@ -1611,10 +1611,10 @@ index 0000000..6a3d1fb
 +    return {**osm, "ways": list(ways.values())} if counts["applied"] else osm
 diff --git a/openlaps/koura_scenery.py b/openlaps/koura_scenery.py
 new file mode 100644
-index 0000000..60d87e1
+index 0000000..09e5c26
 --- /dev/null
 +++ b/openlaps/koura_scenery.py
-@@ -0,0 +1,635 @@
+@@ -0,0 +1,637 @@
 +"""Build surveyed Koura scenery from geographic coordinates and relative dimensions."""
 +
 +import json
@@ -1629,7 +1629,7 @@ index 0000000..60d87e1
 +from shapely.ops import substring
 +
 +from .koura_building_overrides import photo_material, resolve_photo
-+from .roads import box_mesh, iter_polys, triangulate_polygon
++from .roads import DZ_RAYA, box_mesh, iter_polys, triangulate_polygon
 +from .textures import png
 +
 +MATERIALS = {
@@ -2020,9 +2020,11 @@ index 0000000..60d87e1
 +        sample = road_surface.sampler(footprint, terrain)
 +        edge = footprint.boundary
 +
-+        def surface(xy, sample=sample, edge=edge, height=height, width=width):
++        decal = height == 0 and mat.startswith("raya_")
++
++        def surface(xy, sample=sample, edge=edge, height=height, width=width, decal=decal):
 +            if height == 0:
-+                return sample(xy) + 0.003
++                return sample(xy) + (DZ_RAYA if decal else 0.003)
 +            distance = shapely.distance(shapely.points(xy), edge)
 +            lift = min(0.003, height / 2)
 +            return sample(xy) + lift + (height - lift) * np.minimum(distance / width, 1.0)
@@ -2151,7 +2153,7 @@ index 0000000..60d87e1
 +    if "model" in entry:
 +        pos, uv, faces = _model(directory, entry["model"])
 +        if "image" in entry:
-+            material = photo_material(scene, resolve_photo(directory, entry["image"]))
++            material = photo_material(scene, resolve_photo(directory, entry["image"]), prefix="landmark_photo_")
 +        else:
 +            material = _material(scene, entry.get("material", "limestone"))
 +        parts = [(material, pos * size, uv, faces)]
