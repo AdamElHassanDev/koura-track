@@ -24,7 +24,9 @@ The owner tests by driving and reports by voice, so names are spelled as heard. 
 | Build 8, for you | "try to get the most detail visually possible... images of the homes to put them in, or structure around them, so the road actually feels like or reminds you of when you drive on it in real life, so you know the direction better rather than it being just regular models" |
 | Build 8, for you | "the dead parts of the map in the center where there is no terrain should be filled with grass and olive trees. Vegetation and walls must also be accurate... The scenery needs to feel very real." |
 
-Build 9 has passed file checks only. The owner's verdict on it is not in yet; look for a later row in `PROGRESS.md`.
+| Build 9 | "The map definitely feels a lot better." Long straights with a steady climb feel "very flat" (example: Aaba to Kfar Hazir), while short steep climbs feel right. The road there matches the height model, so this is road-height work and waits for the phone recording |
+
+Build 9 loads and drives (owner, 2026-11-24).
 
 What this tells you about the owner: they notice the road surface first, then junctions, then whether the place is recognisable. They want causes found, not spots patched ("Don't fix just it. Try to find the root cause."). They do not want to be asked questions during work.
 
@@ -97,7 +99,7 @@ Stage 2 ground is: the stage 1 box, a strip 250 m either side of every named rou
 | Loop: road climbs, model climbs, difference | 417 m, 458 m, RMS 0.68 m, max 4.4 m | `elevation.py` |
 | Shortcut: road climbs, model climbs | 47 m, 65 m. Not explained yet | `elevation.py` |
 | Frame rate | Never measured | |
-| Loaded in the game | Not yet for build 9. Builds 1 to 4 and 8 were driven | owner |
+| Loaded in the game | Yes, the owner drove build 9 on 2026-11-24 | owner |
 
 ### What is good
 
@@ -214,7 +216,7 @@ Why this order differs from the old one: stage 1 and stage 2 already build, so t
 
 From `DETAIL-STANDARD.md`, shortened to the five things the owner will check when driving:
 
-1. The road is smooth and the hills feel real (not yours, but do not break it).
+1. The road is smooth and the hills feel real (not yours, but do not break it). One thing here is yours: a steady climb on a long straight reads as flat when nothing beside the road shows the slope. Walls, terraces, poles and buildings stepping up the hill are what make a 2 % grade visible, so on long straights place them with care.
 2. At every junction the owner knows which village it is from the buildings.
 3. Turning the camera full circle anywhere on a route shows land, trees and buildings, never the edge of the world.
 4. Olive groves, walls and terraces are where they really are.

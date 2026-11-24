@@ -4,11 +4,12 @@ Every build that was installed in the game, newest first. "Driven" means the own
 
 Smoothness figures come from `koura/survey.py`: the share of road length where the slope changes by more than 2 % (or 5 %) within 8 m. A race-track-smooth road has none.
 
-## Build 9 · 2026-11-24 · not driven yet
+## Build 9 · 2026-11-24 · driven
 - **Real heights restored.** Build 8 had flattened the hills. The road now follows the height model: on the main loop it climbs 417 m against 458 m in the raw model (which also counts roofs and trees), and differs from it by 0.7 m on average.
 - Bridges are built as ordinary road, which removes the band of ground across the road at the Aaba bridge. Bridge side walls are gone for now.
 - Smoothness slightly lower as the price: main highways 0.9 % of length over 2 % (was 0.4 %), none over 5 %.
 - New tool: `koura/elevation.py` compares every route with the height model.
+- Owner after driving: "definitely feels a lot better". Long straight climbs, for example Aaba to Kfar Hazir, still feel flat; the road there matches the height model, so this waits for the phone recording.
 
 ## Build 8 · 2026-11-23 · driven
 - Bare ground patches inside junctions paved (78 across the map), including the two in the middle of the highway at the Aaba junction.
