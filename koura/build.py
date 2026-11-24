@@ -4,7 +4,7 @@ calls the fork's pipeline.  Usage (from the project root):
     (ulimit -v 21000000; .venv/bin/python koura/build.py S1)        # or S2
 
 Options: --res N (terrain grid, default from zone.json), --buf M (override route buffer), --name ID,
---no-imagery, --no-canopy.
+--no-imagery, --no-canopy, --overrides DIR, --out DIR.
 """
 import sys, os, json, math, time, subprocess
 from pathlib import Path
@@ -30,7 +30,7 @@ STAGE = sys.argv[1] if len(sys.argv) > 1 and not sys.argv[1].startswith("-") els
 RES = opt("--res", str(ZONE["stages"][STAGE].get("terrain_res_m", 4)))
 BUF = float(opt("--buf", 0)) or None
 NAME = opt("--name", "koura")
-OUT = os.path.join(ROOT, "out", STAGE)
+OUT = str(Path(opt("--out", Path(ROOT, "out", STAGE))).resolve())
 log = lambda *a: print(*a, flush=True)
 
 # ---- pinned origin and build rectangle (local metres) from zone.json
@@ -235,6 +235,9 @@ argv = ["--bbox", f"{bbox.south},{bbox.west},{bbox.north},{bbox.east}", "--modo"
 if "--no-imagery" in sys.argv: argv.append("--sin-orto")
 if "--no-canopy" in sys.argv: argv.append("--sin-dosel")
 args = parser().parse_args(argv)
+args.koura_overrides = Path(opt("--overrides", Path(ROOT, "koura", "overrides"))).resolve()
+if "--overrides" in sys.argv and not args.koura_overrides.is_dir():
+    raise SystemExit(f"Override directory does not exist: {args.koura_overrides}")
 args.zona_fn = lambda p: zona
 sp = [s for s in ZONE["spawn_points"] if zona.contains(Point(*[float(v) for v in proj.to_local(s["lon"], s["lat"])]))]
 args.spawns = [tuple(float(v) for v in proj.to_local(s["lon"], s["lat"])) for s in sp]

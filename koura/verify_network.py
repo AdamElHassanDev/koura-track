@@ -52,6 +52,7 @@ def record_network(roads, path, requested_spawns=()):
                     "nodes": [a, b],
                     "xy": xy.round(4).tolist(),
                     "half_width_m": edge.hw,
+                    "way_ids": getattr(edge, "way_ids", []),
                 })
         zone = getattr(net, "zona", None)
         if zone is None:

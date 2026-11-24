@@ -1,3 +1,122 @@
+diff --git a/openlaps/buildings.py b/openlaps/buildings.py
+index 27deec8..62d5292 100644
+--- a/openlaps/buildings.py
++++ b/openlaps/buildings.py
+@@ -22,6 +22,7 @@ from shapely.ops import unary_union
+ from . import config as C
+ from .regions import active
+ from . import textures
++from . import koura_building_overrides as overrides
+ from .roads import triangulate_polygon, wall_strip, box_mesh, _num
+ 
+ 
+@@ -29,7 +30,7 @@ def _h(v):
+     return zlib.crc32(str(v).encode()) / 0xFFFFFFFF
+ 
+ 
+-def collect(osm, ms_polys, proj, area_rect, log=print, cat_parts=None, alturas=None):
++def collect(osm, ms_polys, proj, area_rect, log=print, cat_parts=None, alturas=None, override_file=None):
+     """Devuelve lista de dict(poly, tags, height) en coordenadas locales.
+ 
+     `cat_parts`: partes de edificio del Catastro (sources/catastro.py); si vienen, sustituyen a
+@@ -60,7 +61,10 @@ def collect(osm, ms_polys, proj, area_rect, log=print, cat_parts=None, alturas=N
+             continue
+         for g in getattr(p, "geoms", [p]):
+             if g.area >= 6 and clip.contains(g.centroid):
+-                out.append({"poly": g, "tags": t, "height": None, "src": "osm"})
++                building = {"poly": g, "tags": t, "height": None, "src": "osm"}
++                if a.get("type") in ("way", "relation") and "id" in a:
++                    building["osm_id"] = f"{a['type'][0]}{a['id']}"
++                out.append(building)
+                 osm_polys.append(g)
+     out = _dedupe(out)
+     n_osm = len(out)
+@@ -86,7 +90,7 @@ def collect(osm, ms_polys, proj, area_rect, log=print, cat_parts=None, alturas=N
+             f" = {len(out)}")
+     else:
+         log(f"  edificios: {n_osm} de OSM + {n_ms} de Microsoft = {len(out)}")
+-    return out
++    return overrides.apply(out, override_file, proj, clip, log) if override_file is not None else out
+ 
+ 
+ def _con_overture(items, ov, to_poly, clip, log):
+@@ -320,10 +324,52 @@ def height_of(b, urban_dense):
+     return lv * C.LEVEL_HEIGHT + 0.3
+ 
+ 
++def _add_fascia(scene, points, ground, top, text):
++    """Attach a text sign to the wall above the shopfront."""
++    a, b = points
++    direction = b - a
++    length = np.linalg.norm(direction)
++    edge_normal = np.array([direction[1], -direction[0]]) / length
++    inset = direction * 0.075
++    strip = np.array([a + inset, b - inset]) + edge_normal * 0.015
++    band_top = min(ground + 2.8, top - 0.15)
++    height = min(0.55, length * 0.16)
++    bottom = np.column_stack([strip, np.full(2, band_top - height)])
++    p, uv, f = wall_strip(bottom, height, u_scale=0.85 * length, v_scale=height, both=False)
++    scene.add("edificios_det", overrides.sign_material(scene, text), p, uv, f)
++
++
++def _detailed_wall(scene, bot, height, ground, top, fallback, details):
++    """Split only walls with authored decorations, preserving ordinary wall UVs."""
++    lengths = np.linalg.norm(np.diff(bot[:, :2], axis=0), axis=1)
++    chainage = np.r_[0.0, np.cumsum(lengths)]
++    for k, length in enumerate(lengths):
++        if length <= 0:
++            continue
++        segment = bot[k:k + 2]
++        match = overrides.wall_match(segment[:, :2], details)
++        p, uv, f = wall_strip(segment, height, u_scale=4.0, v_scale=-3.0, both=False)
++        uv[:, 0] += chainage[k] / 4.0
++        uv[:, 1] = (ground - p[:, 2]) / 3.0
++        mat = fallback
++        if match is not None:
++            _, detail, u = match
++            if "photo" in detail:
++                mat = overrides.photo_material(scene, detail["photo"])
++                if detail["fit"] == "stretch":
++                    uv[:, 0] = np.tile(u, 2)
++                    uv[:, 1] = (top + C.PARAPET - p[:, 2]) / height
++            if "text" in detail and u[0] <= 0.5 < u[1]:
++                _add_fascia(scene, segment[:, :2], ground, top, detail["text"])
++        scene.add("edificios", mat, p, uv, f, phys="WALL")
++
++
+ def build(scene, buildings, terrain, log=print):
+     n_tinaco = 0
+     for i, b in enumerate(buildings):
+-        poly = b["poly"].simplify(0.25)
++        details = b.get("wall_details")
++        # Keep the original vertex sequence on walls addressed by an override.
++        poly = b["poly"] if details else b["poly"].simplify(0.25)
+         if poly.is_empty or poly.geom_type != "Polygon" or poly.area < 6:
+             continue
+         poly = shapely.geometry.polygon.orient(poly, 1.0)
+@@ -376,13 +422,17 @@ def build(scene, buildings, terrain, log=print):
+         rc = textures.parse_colour(tg.get("roof:colour"))
+         roof_mat = textures.roof_material(scene, rc, pitched) if rc else None
+         # muros (exterior hacia afuera) + pretil
+-        for ring in [poly.exterior] + list(poly.interiors):
++        for j, ring in enumerate([poly.exterior] + list(poly.interiors)):
+             pts = np.asarray(ring.coords)[:, :2]
+             bot = np.column_stack([pts, np.full(len(pts), base)])
+-            p, uv, f = wall_strip(bot, top + C.PARAPET - base, u_scale=4.0, v_scale=-3.0, both=False)
+-            # alinear la textura con el nivel del piso
+-            uv[:, 1] = (ground - p[:, 2]) / 3.0
+-            scene.add("edificios", mat, p, uv, f, phys="WALL")
++            wall_height = top + C.PARAPET - base
++            if j == 0 and details:
++                _detailed_wall(scene, bot, wall_height, ground, top, mat, details)
++            else:
++                p, uv, f = wall_strip(bot, wall_height, u_scale=4.0, v_scale=-3.0, both=False)
++                # alinear la textura con el nivel del piso
++                uv[:, 1] = (ground - p[:, 2]) / 3.0
++                scene.add("edificios", mat, p, uv, f, phys="WALL")
+             if pitched or (nave and shape != "flat"):
+                 continue
+             # cara interior del pretil
 diff --git a/openlaps/export_ac.py b/openlaps/export_ac.py
 index 5e3853d..d183ceb 100644
 --- a/openlaps/export_ac.py
@@ -11,11 +130,1122 @@ index 5e3853d..d183ceb 100644
          from . import vivo as V
          V.escribir_lua(root, "", "", float(info["lat"]), float(info["lon"]),
                         modo_espera=True, rect_horneado=info.get("rect"), pista=track_id)
+diff --git a/openlaps/koura_building_overrides.py b/openlaps/koura_building_overrides.py
+new file mode 100644
+index 0000000..386c513
+--- /dev/null
++++ b/openlaps/koura_building_overrides.py
+@@ -0,0 +1,312 @@
++"""Footprint, roof, facade and sign overrides for the baked Koura stages."""
++
++import hashlib
++import io
++import json
++import math
++import re
++from collections import Counter
++from pathlib import Path
++
++import numpy as np
++import shapely
++from PIL import Image, ImageDraw, ImageOps
++from shapely.geometry import LineString, Point, Polygon
++from shapely.geometry.polygon import orient
++
++from . import config, textures
++
++
++TAG_FIELDS = {
++    "levels": "building:levels",
++    "roof": "roof:shape",
++    "colour": "building:colour",
++    "roof_colour": "roof:colour",
++}
++ROOFS = {"flat", "gabled", "hipped", "pyramidal", "half-hipped", "mansard", "gambrel"}
++METADATA = {"name", "source", "state", "note"}
++MATCH_DISTANCE_M = 3.0
++
++
++def _keys(entry, allowed):
++    if not isinstance(entry, dict):
++        raise ValueError("expected an object")
++    unknown = entry.keys() - allowed
++    if unknown:
++        raise ValueError(f"unknown fields: {', '.join(sorted(unknown))}")
++
++
++def _number(value):
++    return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
++
++
++def _local(proj, lat, lon):
++    if not _number(lat) or not _number(lon) or not (-90 <= lat <= 90 and -180 <= lon <= 180):
++        raise ValueError("expected valid latitude and longitude")
++    x, y = proj.to_local(lon, lat)
++    if not (math.isfinite(x) and math.isfinite(y)):
++        raise ValueError("coordinate does not project to a finite location")
++    return float(x), float(y)
++
++
++def _osm_id(value):
++    if not isinstance(value, str) or not re.fullmatch(r"[wr][0-9]+", value):
++        raise ValueError("expected an OSM area id such as w123 or r123")
++    return value
++
++
++def _image(directory, value):
++    if not isinstance(value, str) or not value.strip():
++        raise ValueError("expected an image path relative to the override file")
++    path = (directory / value).resolve()
++    if Path(value).is_absolute() or not path.is_relative_to(directory):
++        raise ValueError("image path must stay within the override directory")
++    if not path.is_file():
++        raise ValueError(f"image missing: {value}")
++    with Image.open(path) as image:
++        image.verify()
++    return path
++
++
++def _wall_index(value, outline):
++    if type(value) is not int or not 0 <= value < len(outline) - 1:
++        raise ValueError(f"edge must be an integer from 0 to {len(outline) - 2}")
++    edge = outline[value:value + 2]
++    if edge[0] == edge[1]:
++        raise ValueError("edge has zero length")
++    return tuple(edge)
++
++
++def _details(building, entry, directory):
++    """Validate the entire entry before replacing any fields on the building."""
++    tags = dict(building["tags"])
++    updates = {}
++    for key, tag in TAG_FIELDS.items():
++        if key not in entry:
++            continue
++        value = entry[key]
++        if key == "levels":
++            if type(value) is not int or value <= 0 or not math.isfinite(value * config.LEVEL_HEIGHT):
++                raise ValueError("levels must be a positive integer")
++            # The explicit override takes precedence over a source height.
++            tags.pop("height", None)
++            updates["floors"] = value
++        elif key == "roof":
++            if not isinstance(value, str) or value not in ROOFS:
++                raise ValueError(f"unsupported roof shape: {value!r}")
++        elif not isinstance(value, str) or textures.parse_colour(value) is None:
++            raise ValueError(f"invalid {key}: {value!r}")
++        tags[tag] = str(value)
++    name = entry.get("name")
++    if name is not None:
++        if not isinstance(name, str) or not name.strip():
++            raise ValueError("name must be a non-empty string")
++        tags["name"] = name
++
++    outline = building.get("wall_outline")
++    if outline is None and ("facades" in entry or "sign" in entry):
++        outline = tuple(orient(building["poly"], 1.0).exterior.coords)
++    walls = {edge: dict(detail) for edge, detail in building.get("wall_details", {}).items()}
++    if "facades" in entry:
++        if not isinstance(entry["facades"], list):
++            raise ValueError("facades must be a list")
++        seen = set()
++        for facade in entry["facades"]:
++            _keys(facade, {"edge", "image", "fit"})
++            edge = _wall_index(facade.get("edge"), outline)
++            fit = facade.get("fit", "tile")
++            if fit not in ("tile", "stretch"):
++                raise ValueError("facade fit must be tile or stretch")
++            if edge in seen:
++                raise ValueError("multiple facades target the same edge")
++            seen.add(edge)
++            walls.setdefault(edge, {}).update(photo=_image(directory, facade.get("image")), fit=fit)
++
++    if "sign" in entry:
++        sign = entry["sign"]
++        _keys(sign, {"edge", "text", "image"})
++        edge = _wall_index(sign.get("edge"), outline)
++        text = sign.get("text")
++        if text is not None and (not isinstance(text, str) or not text.strip()):
++            raise ValueError("sign text must be a non-empty string")
++        detail = walls.setdefault(edge, {})
++        if "image" in sign:
++            if "photo" in detail:
++                raise ValueError("a facade image and a shopfront image target the same edge")
++            detail.update(photo=_image(directory, sign["image"]), fit="stretch")
++        elif text:
++            detail["text"] = text
++        else:
++            raise ValueError("sign requires text or an image")
++
++    return {**building, **updates, "tags": tags, "wall_outline": outline, "wall_details": walls}
++
++
++def _footprint(entry, proj):
++    ring = entry.get("ring")
++    if not isinstance(ring, list) or len(ring) < 3:
++        raise ValueError("ring must contain at least three latitude/longitude pairs")
++    points = []
++    for pair in ring:
++        if not isinstance(pair, list) or len(pair) != 2:
++            raise ValueError("ring vertices must be [latitude, longitude]")
++        points.append(_local(proj, *pair))
++    poly = Polygon(points)
++    if not poly.is_valid or poly.area < 6 or any(a == b for a, b in zip(points, points[1:])):
++        raise ValueError("ring must be a valid footprint of at least 6 m² with no consecutive duplicates")
++    return {"poly": poly, "tags": {"building": "yes"}, "height": None, "src": "manual",
++            "wall_outline": tuple(poly.exterior.coords)}
++
++
++def _counted(log, counts, label, operation):
++    try:
++        result = operation()
++    except (ValueError, OSError, OverflowError, Image.DecompressionBombError) as error:
++        counts["rejected"] += 1
++        log(f"  building override {label}: rejected ({error})")
++        return
++    if result:
++        counts["applied"] += 1
++    else:
++        counts["unmatched"] += 1
++        log(f"  building override {label}: unmatched")
++
++
++def apply(buildings, path, proj, clip, log):
++    """Apply a local JSON file without mutating source tags or footprints."""
++    path = Path(path).resolve()
++    counts = Counter()
++
++    def summary():
++        log(f"  building overrides: {counts['applied']} applied, {counts['unmatched']} unmatched, "
++            f"{counts['rejected']} rejected")
++
++    try:
++        data = json.loads(path.read_text(encoding="utf-8"))
++        _keys(data, {"by_osm_id", "by_point", "add", "remove"})
++        if not isinstance(data.get("by_osm_id", {}), dict):
++            raise ValueError("by_osm_id must be an object")
++        for optional_list in ("by_point", "add", "remove"):
++            if not isinstance(data.get(optional_list, []), list):
++                raise ValueError(f"{optional_list} must be a list")
++    except (OSError, ValueError) as error:
++        log(f"  building overrides: rejected {path.name} ({error})")
++        counts["rejected"] += 1
++        summary()
++        return buildings
++    if not any(data.values()):
++        summary()
++        return buildings
++
++    items = list(buildings)
++    polys = [item["poly"] for item in items]
++    point_index = shapely.STRtree(polys)
++    by_id = {}
++    for k, item in enumerate(items):
++        if item.get("osm_id") is not None:
++            by_id.setdefault(item["osm_id"], []).append(k)
++    removed = set()
++    editable = set(TAG_FIELDS) | METADATA | {"facades", "sign"}
++
++    def find_point(entry):
++        point = Point(_local(proj, entry.get("lat"), entry.get("lon")))
++        choices = [int(k) for k in point_index.query(point, predicate="dwithin", distance=MATCH_DISTANCE_M)
++                   if k not in removed]
++        if not choices:
++            return ()
++        return (min(choices, key=lambda k: (polys[k].distance(point), polys[k].area, k)),)
++
++    def remove(entry):
++        _keys(entry, {"osm_id", "lat", "lon"} | METADATA)
++        if "osm_id" in entry:
++            if "lat" in entry or "lon" in entry:
++                raise ValueError("specify either osm_id or coordinates")
++            matches = set(by_id.get(_osm_id(entry["osm_id"]), ())) - removed
++        else:
++            matches = find_point(entry)
++        removed.update(matches)
++        return bool(matches)
++
++    def update(entry, matches):
++        if len(matches) > 1 and ("facades" in entry or "sign" in entry):
++            raise ValueError("the OSM id has multiple footprints; use by_point for a wall-specific edit")
++        updated = [_details(items[k], entry, path.parent) for k in matches]
++        for k, replacement in zip(matches, updated):
++            items[k] = replacement
++        return bool(updated)
++
++    def update_id(osm_id, entry):
++        _keys(entry, editable)
++        matches = [k for k in by_id.get(_osm_id(osm_id), []) if k not in removed]
++        return update(entry, matches)
++
++    def update_point(entry):
++        _keys(entry, editable | {"lat", "lon"})
++        return update(entry, find_point(entry))
++
++    def add(entry):
++        _keys(entry, editable | {"ring"})
++        b = _footprint(entry, proj)
++        if not clip.contains(b["poly"].centroid):
++            return False
++        items.append(_details(b, entry, path.parent))
++        return True
++
++    for k, entry in enumerate(data.get("remove", [])):
++        _counted(log, counts, f"remove[{k}]", lambda: remove(entry))
++    for osm_id, entry in data.get("by_osm_id", {}).items():
++        _counted(log, counts, f"by_osm_id[{osm_id}]", lambda: update_id(osm_id, entry))
++    for k, entry in enumerate(data.get("by_point", [])):
++        _counted(log, counts, f"by_point[{k}]", lambda: update_point(entry))
++    for k, entry in enumerate(data.get("add", [])):
++        _counted(log, counts, f"add[{k}]", lambda: add(entry))
++
++    summary()
++    return [b for k, b in enumerate(items) if k not in removed]
++
++
++def _material(scene, name, image):
++    texture = name + ".png"
++    scene.textures[texture] = textures.png(image)
++    scene.images[texture] = image
++    return scene.material(name, texture, ambient=0.5, diffuse=0.55, specular=0.04)
++
++
++def photo_material(scene, path):
++    content = path.read_bytes()
++    name = "fachada_foto_" + hashlib.sha256(content).hexdigest()[:16]
++    if name not in scene.materials:
++        with Image.open(io.BytesIO(content)) as raw:
++            image = ImageOps.exif_transpose(raw).convert("RGB")
++        image.thumbnail((2048, 2048), Image.Resampling.LANCZOS)
++        _material(scene, name, image)
++    return name
++
++
++def sign_material(scene, text):
++    name = "fachada_rotulo_" + hashlib.sha256(text.encode()).hexdigest()[:16]
++    if name not in scene.materials:
++        image = Image.new("RGB", (512, 96), (48, 52, 52))
++        draw = ImageDraw.Draw(image)
++        draw.rectangle((3, 3, 508, 92), outline=(167, 158, 133), width=2)
++        size = 56
++        font = textures._font(size)
++        while size > 8 and draw.textlength(text, font=font) > 472:
++            size -= 2
++            font = textures._font(size)
++        draw.text((256, 48), text, fill=(243, 234, 217), font=font, anchor="mm")
++        _material(scene, name, image)
++    return name
++
++
++def wall_match(points, walls):
++    """Map a built edge onto the authored wall, including a clipped wall segment."""
++    for edge, detail in walls.items():
++        line = LineString(edge)
++        if not all(line.distance(Point(pt)) < 1e-5 for pt in points):
++            continue
++        start, end = (line.project(Point(pt), normalized=True) for pt in points)
++        if end < start:
++            start, end = 1.0 - start, 1.0 - end
++        return edge, detail, np.array([start, end])
++    return None
+diff --git a/openlaps/koura_road_overrides.py b/openlaps/koura_road_overrides.py
+new file mode 100644
+index 0000000..6a3d1fb
+--- /dev/null
++++ b/openlaps/koura_road_overrides.py
+@@ -0,0 +1,260 @@
++"""Apply Koura's plan-view road edits to the parsed OSM snapshot."""
++
++import json
++import math
++import re
++from collections import Counter, defaultdict
++from pathlib import Path
++
++import numpy as np
++from scipy.spatial import cKDTree
++
++from . import config
++
++
++JOIN_M = 3.0
++OPERATIONS = {"add", "remove", "move"}
++METADATA = {"source", "state"}
++DIRECTIONS = {"yes", "no", "1", "0", "-1", "true", "false"}
++
++
++def _way_key(value):
++    if isinstance(value, bool) or not isinstance(value, (str, int)) or not str(value).strip():
++        raise ValueError("expected a way ID")
++    return str(value)
++
++
++def _tag_values(values):
++    if not isinstance(values, dict):
++        raise ValueError("expected an object of OSM tags")
++    tags = {}
++    for key, value in values.items():
++        if key in METADATA:
++            continue
++        if not isinstance(key, str) or not key or key in {"height", "ele", "z"}:
++            raise ValueError(f"unsupported tag {key!r}")
++        if not isinstance(value, (str, int, float, bool)) or isinstance(value, float) and not math.isfinite(value):
++            raise ValueError(f"{key} must be a finite scalar")
++        tags[key] = ("yes" if value else "no") if isinstance(value, bool) else str(value).strip()
++    if not tags:
++        raise ValueError("no OSM tags provided")
++    if "width" in tags:
++        width = re.fullmatch(r"(\d+(?:\.\d+)?)\s*(?:m)?", tags["width"])
++        if not width or not 2.5 < float(width[1]) < 40:
++            raise ValueError("width must be greater than 2.5 m and less than 40 m")
++        tags["width"] = width[1]
++    if "lanes" in tags and not re.fullmatch(r"[1-8]", tags["lanes"]):
++        raise ValueError("lanes must be an integer from 1 to 8")
++    if "oneway" in tags and tags["oneway"] not in DIRECTIONS:
++        raise ValueError("oneway must be yes, no or -1")
++    if "surface" in tags and tags["surface"] not in config.SURFACE_MAP:
++        raise ValueError(f"unsupported surface {tags['surface']!r}")
++    if "highway" in tags and tags["highway"] not in config.NETWORK | config.VEREDAS:
++        raise ValueError(f"unsupported drivable highway {tags['highway']!r}")
++    if "maxspeed" in tags:
++        speed = re.fullmatch(r"(\d+(?:\.\d+)?)\s*(mph|km/h)?", tags["maxspeed"])
++        if not speed or not 5 <= float(speed[1]) * (1.609344 if speed[2] == "mph" else 1) <= 160:
++            raise ValueError("maxspeed must be between 5 and 160 km/h")
++        tags["maxspeed"] = f"{speed[1]} mph" if speed[2] == "mph" else speed[1]
++    return tags
++
++
++def _coordinates(nodes, proj):
++    if not isinstance(nodes, list) or len(nodes) < 2:
++        raise ValueError("nodes must contain at least two [latitude, longitude] pairs")
++    coords = []
++    for position in nodes:
++        if not isinstance(position, list) or len(position) != 2 or any(
++            isinstance(value, bool) or not isinstance(value, (int, float)) for value in position
++        ):
++            raise ValueError("expected a numeric [latitude, longitude] pair")
++        lat, lon = position
++        if not -90 <= lat <= 90 or not -180 <= lon <= 180:
++            raise ValueError("coordinate outside geographic bounds")
++        if not coords or coords[-1] != (lon, lat):
++            coords.append((lon, lat))
++    if len(set(coords)) < 2:
++        raise ValueError("nodes must contain two different positions")
++    xy = np.column_stack(proj.to_local(*zip(*coords)))
++    if not np.isfinite(xy).all():
++        raise ValueError("coordinate cannot be projected")
++    return coords, xy
++
++
++def _is_road(way):
++    tags = way["tags"]
++    return (
++        tags.get("highway") in config.NETWORK
++        and not config.cerrada_a_coches(tags)
++        and tags.get("area") != "yes"
++    )
++
++
++class _RoadNodes:
++    def __init__(self, ways, nodes, proj):
++        self.owners = defaultdict(set)
++        self.coords = {}
++        self.layers = {}
++        for key, way in ways.items():
++            if not _is_road(way):
++                continue
++            self.layers[key] = way["tags"].get("layer", "0")
++            for node, position in zip(way["nodes"], way["coords"]):
++                self.owners[node].add(key)
++                self.coords[node] = position
++        self.ids = list(self.coords)
++        self.xy = np.column_stack(proj.to_local(*zip(*self.coords.values()))) if self.ids else np.empty((0, 2))
++        self.tree = cKDTree(self.xy)
++        self.by_id = dict(zip(self.ids, self.xy))
++        used_ids = (node for way in ways.values() for node in way["nodes"])
++        self.next_id = min(0, min((node["id"] for node in nodes), default=0), min(used_ids, default=0)) - 1
++        self.added = {}
++
++    def _nearest(self, point, moving, layer):
++        candidates = self.tree.query_ball_point(point, JOIN_M)
++        index = min(
++            (index for index in candidates if any(
++                owner != moving and self.layers[owner] == layer for owner in self.owners[self.ids[index]]
++            )),
++            key=lambda index: (math.dist(self.xy[index], point), self.ids[index]),
++            default=None,
++        )
++        return self.ids[index] if index is not None else None
++
++    def replacement(self, positions, proj, *, moving=None, old_nodes=(), layer="0"):
++        coords, xy = _coordinates(positions, proj)
++        snapped = {}
++        if moving is not None:
++            # Keep each original shared node on the new trace. Splitting the
++            # way at these nodes keeps adjoining streets connected.
++            for node in dict.fromkeys(old_nodes):
++                if not (self.owners.get(node, set()) - {moving}):
++                    continue
++                distances = np.linalg.norm(xy - self.by_id[node], axis=1)
++                index = int(np.argmin(distances))
++                if distances[index] > JOIN_M or index in snapped:
++                    raise ValueError(f"include shared junction node {node} within {JOIN_M:g} m")
++                snapped[index] = node
++        for index in (0, len(coords) - 1):
++            if index not in snapped:
++                node = self._nearest(xy[index], moving, layer)
++                if node is not None:
++                    snapped[index] = node
++        known_positions = {coords[index]: node for index, node in snapped.items()}
++        new_nodes, new_coords = [], []
++        for index, position in enumerate(coords):
++            node = snapped.get(index, known_positions.get(position))
++            if node is not None:
++                position = self.coords[node]
++            else:
++                key = layer, position
++                node = self.added.get(key)
++                if node is None:
++                    node = self.added[key] = self.next_id
++                    self.next_id -= 1
++            if not new_nodes or new_nodes[-1] != node:
++                new_nodes.append(node)
++                new_coords.append(position)
++        if len(set(new_nodes)) < 2:
++            raise ValueError("all positions snapped to the same node")
++        return new_nodes, new_coords
++
++
++def apply_road_overrides(osm, overrides, proj, log=print):
++    """Return a parsed OSM snapshot with road overrides applied for one build."""
++    if overrides is None:
++        return osm
++    if isinstance(overrides, (str, Path)):
++        try:
++            overrides = json.loads(Path(overrides).read_text(encoding="utf-8"))
++        except (OSError, ValueError) as exc:
++            log(f"  road overrides: 0 applied, 0 unmatched, 1 rejected ({exc})")
++            return osm
++    if not isinstance(overrides, dict):
++        log("  road overrides: 0 applied, 0 unmatched, 1 rejected (expected an object)")
++        return osm
++
++    counts = Counter()
++    ways = {str(way["id"]): way for way in osm["ways"]}
++
++    def target(value):
++        key = _way_key(value)
++        if key not in ways or "highway" not in ways[key]["tags"]:
++            raise LookupError(key)
++        return key
++
++    def remove(value, _):
++        del ways[target(value)]
++
++    def set_tags(value, values):
++        key = target(value)
++        way = ways[key]
++        tags = {**way["tags"], **_tag_values(values)}
++        if tags != way["tags"]:
++            ways[key] = {**way, "tags": tags, "overridden_tags": True}
++
++    def apply(operation, entries, update):
++        for label, value in entries:
++            try:
++                update(label, value)
++            except LookupError:
++                counts["unmatched"] += 1
++                log(f"  road override {operation} {label!r}: OSM road unmatched")
++            except ValueError as exc:
++                counts["rejected"] += 1
++                log(f"  road override {operation} {label!r}: {exc}")
++            else:
++                counts["applied"] += 1
++                log(f"  road override {operation} {label!r}: applied")
++
++    def entries(key, container):
++        value = overrides.get(key, container())
++        if not isinstance(value, container):
++            counts["rejected"] += 1
++            log(f"  road override {key}: expected {container.__name__}")
++            return container()
++        return value
++
++    apply("remove", ((value, None) for value in entries("remove", list)), remove)
++    apply("tags", ((key, value) for key, value in overrides.items() if key not in OPERATIONS), set_tags)
++
++    moved = entries("move", dict)
++    added = entries("add", list)
++
++    if moved:
++        original_nodes = _RoadNodes(ways, osm["nodes"], proj)
++
++        def move(value, positions):
++            key = target(value)
++            way = ways[key]
++            if isinstance(positions, dict):
++                positions = positions.get("nodes")
++            nodes, coords = original_nodes.replacement(
++                positions, proj, moving=key, old_nodes=way["nodes"], layer=way["tags"].get("layer", "0"),
++            )
++            ways[key] = {**way, "nodes": nodes, "coords": coords}
++
++        apply("move", moved.items(), move)
++
++    if added:
++        # Snap additions against the retained and moved ways as built.
++        graph_nodes = _RoadNodes(ways, osm["nodes"], proj)
++
++        def add(_, entry):
++            if not isinstance(entry, dict):
++                raise ValueError("expected an object with id, tags and nodes")
++            key = _way_key(entry.get("id"))
++            if key in ways:
++                raise ValueError(f"way {key} already exists")
++            tags = _tag_values(entry.get("tags"))
++            if not _is_road({"tags": tags}):
++                raise ValueError("added way must be drivable")
++            nodes, coords = graph_nodes.replacement(entry.get("nodes"), proj, layer=tags.get("layer", "0"))
++            ways[key] = {"id": key, "tags": tags, "nodes": nodes, "coords": coords, "overridden_tags": True}
++
++        apply("add", ((entry.get("id") if isinstance(entry, dict) else index, entry)
++                      for index, entry in enumerate(added)), add)
++
++    log(f"  road overrides: {counts['applied']} applied, {counts['unmatched']} unmatched, "
++        f"{counts['rejected']} rejected")
++    return {**osm, "ways": list(ways.values())} if counts["applied"] else osm
+diff --git a/openlaps/koura_scenery.py b/openlaps/koura_scenery.py
+new file mode 100644
+index 0000000..6ad6e57
+--- /dev/null
++++ b/openlaps/koura_scenery.py
+@@ -0,0 +1,466 @@
++"""Build surveyed Koura scenery from geographic coordinates and relative dimensions."""
++
++import json
++import re
++from pathlib import Path
++
++import numpy as np
++import shapely
++from PIL import Image
++from scipy.spatial.transform import Rotation
++from shapely.geometry import LineString, Point, Polygon, box
++from shapely.ops import substring
++
++from .roads import box_mesh, iter_polys, triangulate_polygon
++from .textures import png
++
++MATERIALS = {
++    "limestone": "muro_piedra", "stone": "muro_piedra", "dry_stone": "muro_piedra",
++    "concrete": "muro", "plaster": "azotea_blanco", "block": "banqueta",
++    "grass": "isleta", "metal": "defensa",
++}
++STATES = {"todo", "shape", "textured", "recheck after heights"}
++
++
++def _number(value, low, high, label):
++    if (not isinstance(value, (float, int)) or isinstance(value, bool)
++            or not low <= value <= high):
++        raise ValueError(f"{label} must be a number in [{low}, {high}]")
++    return float(value)
++
++
++def _vector(value, length, low, high, label):
++    if not isinstance(value, list) or len(value) != length:
++        raise ValueError(f"{label} must contain {length} values")
++    return np.array([_number(x, low, high, label) for x in value])
++
++
++def _xy(proj, coordinate):
++    lat, lon = _vector(coordinate, 2, -180, 180, "coordinate [lat, lon]")
++    _number(lat, -90, 90, "latitude")
++    return proj.to_local(lon, lat)
++
++
++def _material(scene, value):
++    if not isinstance(value, str) or not value:
++        raise ValueError("material is required")
++    name = MATERIALS.get(value, value)
++    if name in scene.materials:
++        return name
++    if not re.fullmatch(r"#[0-9a-fA-F]{6}", value):
++        raise ValueError(f"unknown material {value!r}")
++    name = f"landmark_{value[1:].lower()}"
++    if name not in scene.materials:
++        texture = name + ".png"
++        image = Image.new("RGB", (16, 16), value)
++        scene.images[texture] = image
++        scene.textures[texture] = png(image)
++        scene.material(name, texture, ambient=0.44, diffuse=0.52, specular=0.06)
++    return name
++
++
++def _collider(entry):
++    enabled = entry.get("collider", True)
++    if not isinstance(enabled, bool):
++        raise ValueError("collider must be true or false")
++    return "WALL" if enabled else None
++
++
++def _load(path):
++    if not path.exists():
++        return []
++    data = json.loads(path.read_text(encoding="utf-8"))
++    if not isinstance(data, list):
++        raise ValueError("expected a list of entries")
++    return data
++
++
++def _entry(entry, seen):
++    if not isinstance(entry, dict):
++        raise ValueError("entry must be an object")
++    identifier = entry.get("id")
++    if not isinstance(identifier, str) or not identifier.strip():
++        raise ValueError("id must be a nonempty string")
++    if identifier in seen:
++        raise ValueError(f"duplicate id {identifier!r}")
++    seen.add(identifier)
++    if not isinstance(entry.get("source"), str) or not entry["source"].strip():
++        raise ValueError("source is required")
++    if entry.get("state") not in STATES:
++        raise ValueError(f"state must be one of {', '.join(sorted(STATES))}")
++    if {"z", "absolute_height", "elevation", "altitude"} & entry.keys():
++        raise ValueError("use terrain-relative placement and above-ground dimensions")
++
++
++def _lines(geometry):
++    if isinstance(geometry, LineString) and geometry.length > 0.01:
++        yield geometry
++    elif hasattr(geometry, "geoms"):
++        for member in geometry.geoms:
++            yield from _lines(member)
++
++
++def _face_up(xy, faces):
++    tri = xy[faces]
++    a, b = tri[:, 1] - tri[:, 0], tri[:, 2] - tri[:, 0]
++    signed_area = a[:, 0] * b[:, 1] - a[:, 1] * b[:, 0]
++    faces = faces[signed_area != 0].copy()
++    downward = signed_area[signed_area != 0] < 0
++    faces[downward] = faces[downward, ::-1]
++    return faces
++
++
++def _wall(scene, terrain, proj, zone, entry):
++    line = LineString([_xy(proj, coord) for coord in entry["line"]])
++    if line.length < 0.1 or not line.is_simple:
++        raise ValueError("wall line is too short or self-intersecting")
++    height = _number(entry["height_m"], 0.1, 15, "height_m")
++    thickness = _number(entry.get("thickness_m", 0.35), 0.08, 3, "thickness_m")
++    material = _material(scene, entry["material"])
++    collider = _collider(entry)
++    gaps = sorted((_number(gap["start_m"], 0, line.length, "gap start_m"),
++                   _number(gap["end_m"], 0, line.length, "gap end_m"))
++                  for gap in entry.get("gaps", []))
++    segments, last = [], 0.0
++    for start, end in gaps:
++        if end <= start or start < last:
++            raise ValueError("gate gaps must have positive length and cannot overlap")
++        segments.append(substring(line, last, start))
++        last = end
++    segments.append(substring(line, last, line.length))
++
++    footprints, metres = [], 0.0
++    for segment in segments:
++        for run in _lines(segment.intersection(zone)):
++            outline = run.buffer(thickness / 2, cap_style="flat", join_style="mitre", mitre_limit=2)
++            for footprint in iter_polys(outline.intersection(zone)):
++                if footprint.area <= 1e-4:
++                    continue
++                xy, roof_faces = triangulate_polygon(footprint, 0.8)
++                top = np.column_stack([xy, terrain.height(*xy.T) + height])
++                scene.add("barreras", material, top, xy / 2, _face_up(xy, roof_faces), phys=collider)
++                orient = shapely.geometry.polygon.orient(footprint, 1.0)
++                for ring in (orient.exterior, *orient.interiors):
++                    path = np.asarray(shapely.segmentize(ring, 0.8).coords)[:, :2]
++                    grade = terrain.height(*path.T)
++                    bottom = np.column_stack([path, grade - 0.2])
++                    roof = np.column_stack([path, grade + height])
++                    count = len(path)
++                    edges = np.arange(count - 1)
++                    faces = np.vstack([np.c_[edges, edges + 1, edges + 1 + count],
++                                       np.c_[edges, edges + 1 + count, edges + count]])
++                    chainage = np.r_[0, np.cumsum(np.linalg.norm(np.diff(path, axis=0), axis=1))] / 2
++                    uv = np.vstack([np.c_[chainage, np.full(count, (height + 0.2) / 2)],
++                                    np.c_[chainage, np.zeros(count)]])
++                    scene.add("barreras", material, np.vstack([bottom, roof]), uv, faces, phys=collider)
++                footprints.append(footprint)
++                metres += run.intersection(footprint).length
++    return footprints, metres
++
++
++class _RoadSurface:
++    """Read the finished road mesh within an island's bounds and sample it barycentrically."""
++
++    def __init__(self, scene):
++        self.pieces = [piece for (group, _, phys), pieces in scene.pieces.items()
++                       if group == "calzada" and phys for piece in pieces]
++        boxes = [box(*piece.pos[:, :2].min(axis=0), *piece.pos[:, :2].max(axis=0)) for piece in self.pieces]
++        self.index = shapely.STRtree(boxes)
++
++    def sampler(self, footprint, terrain):
++        xmin, ymin, xmax, ymax = footprint.bounds
++        nearby = []
++        for idx in self.index.query(footprint):
++            piece = self.pieces[idx]
++            faces = piece.pos[piece.faces]
++            a, b = faces[:, :, :2].min(axis=1), faces[:, :, :2].max(axis=1)
++            hit = ((a[:, 0] <= xmax) & (a[:, 1] <= ymax) & (b[:, 0] >= xmin) & (b[:, 1] >= ymin))
++            nearby.append(faces[hit])
++        if not nearby:
++            return lambda xy: terrain.height(*xy.T)
++        triangles = np.concatenate(nearby)
++        a, b = triangles[:, 1] - triangles[:, 0], triangles[:, 2] - triangles[:, 0]
++        det = a[:, 0] * b[:, 1] - a[:, 1] * b[:, 0]
++        valid = np.abs(det) > 1e-10
++        origin, a, b, det = triangles[valid, 0], a[valid], b[valid], det[valid]
++        tree = shapely.STRtree(shapely.polygons(triangles[valid, :, :2]))
++
++        def height(xy):
++            above, tri = tree.query(shapely.points(xy), predicate="intersects")
++            ground = terrain.height(*xy.T)
++            if not len(tri):
++                return ground
++            delta = xy[above] - origin[tri, :2]
++            u = (delta[:, 0] * b[tri, 1] - delta[:, 1] * b[tri, 0]) / det[tri]
++            v = (a[tri, 0] * delta[:, 1] - a[tri, 1] * delta[:, 0]) / det[tri]
++            hit = origin[tri, 2] + u * a[tri, 2] + v * b[tri, 2]
++            level = np.full(len(xy), -np.inf)
++            np.maximum.at(level, above, hit)
++            return np.where(np.isfinite(level), level, ground)
++
++        return height
++
++
++def _remove_automatic_island(stock, footprint):
++    """Remove the stock mesh for the same island, including its full-height vertical kerb."""
++    for pieces, piece in stock:
++        if piece in pieces:
++            outline = shapely.MultiPoint(piece.pos[:, :2]).convex_hull
++            if outline.area and (outline.covers(footprint.centroid)
++                                 or footprint.intersection(outline).area > 0.5 * outline.area):
++                pieces.remove(piece)
++
++
++def _islands(scene, terrain, proj, zone, road_surface, stock, entry):
++    x, y = _xy(proj, entry["center"])
++    center = Point(x, y)
++    if not zone.covers(center):
++        return []
++    kind = entry.get("kind", "roundabout")
++    outlines = entry.get("islands")
++    if kind == "roundabout":
++        outer = _number(entry["outer_diameter_m"], 1, 200, "outer_diameter_m")
++        inner = _number(entry["inner_diameter_m"], 0.2, outer - 0.2, "inner_diameter_m")
++        outlines = outlines or [{"ring": None, "material": "grass"}]
++    elif kind != "island_junction" or not outlines or any(not item.get("ring") for item in outlines):
++        raise ValueError("provide surveyed island rings for a non-circular island junction")
++    specs = [(item, True) for item in outlines] + [(item, False) for item in entry.get("splitter_islands", [])]
++    outputs, plans = [], []
++    for item, central in specs:
++        ring = item["ring"]
++        if ring is None and central and kind == "roundabout":
++            footprint = center.buffer(inner / 2, quad_segs=20)
++        else:
++            footprint = Polygon([_xy(proj, point) for point in ring])
++        if not footprint.is_valid or footprint.area < 0.04:
++            raise ValueError("island ring must be a valid polygon")
++        if not zone.covers(footprint):
++            raise ValueError("island intersects the edge of the detailed zone")
++        if kind == "roundabout" and central and not center.buffer(outer / 2 + 0.01, quad_segs=40).covers(footprint):
++            raise ValueError("central island extends past the surveyed outer diameter")
++        height = _number(item.get("kerb_height_m", entry.get("kerb_height_m", 0.08)), 0, 0.08, "kerb_height_m")
++        width = _number(item.get("kerb_width_m", entry.get("kerb_width_m", 0.32)),
++                        max(0.05, 4 * height), 2.0, "kerb_width_m")
++        platform = footprint.buffer(-width, join_style="mitre")
++        if platform.is_empty:
++            raise ValueError("island is narrower than its sloped kerb")
++        mat = _material(scene, item.get("material", "grass"))
++        curb = _material(scene, item.get("kerb_material", "guarnicion"))
++        content = item.get("content", [])
++        if not isinstance(content, list) or not all(isinstance(name, str) and name for name in content):
++            raise ValueError("island content is a list of landmark IDs")
++        plans.append((footprint, platform, height, width, mat, curb, content))
++
++    if any(a[0].intersection(b[0]).area > 0.001 for i, a in enumerate(plans) for b in plans[:i]):
++        raise ValueError("island outlines overlap")
++    for footprint, platform, height, width, mat, curb, content in plans:
++        sample = road_surface.sampler(footprint, terrain)
++        edge = footprint.boundary
++
++        def surface(xy, sample=sample, edge=edge, height=height, width=width):
++            if height == 0:
++                return sample(xy) + 0.003
++            distance = shapely.distance(shapely.points(xy), edge)
++            lift = min(0.003, height / 2)
++            return sample(xy) + lift + (height - lift) * np.minimum(distance / width, 1.0)
++
++        _remove_automatic_island(stock, footprint)
++        for polygon, material, physics in ((footprint.difference(platform), curb, "PAVEMENT"),
++                                          (platform, mat, "GRASS" if mat == "isleta" else "PAVEMENT")):
++            for piece in iter_polys(polygon):
++                xy, faces = triangulate_polygon(piece, 0.30)
++                pos = np.column_stack([xy, surface(xy)])
++                scene.add("isleta", material, pos, xy / 2, _face_up(xy, faces), phys=physics if height else None)
++        outputs.append((footprint, surface, set(content)))
++    return outputs
++
++
++def _radial(kind):
++    count = 20
++    angles = np.arange(count) * (2 * np.pi / count)
++    ring = np.c_[np.cos(angles), np.sin(angles)] / 2
++    if kind == "ellipsoid":
++        latitude = np.linspace(-np.pi / 2, np.pi / 2, 11)[1:-1]
++        points = [np.c_[ring * np.cos(angle), np.full(count, np.sin(angle) / 2)] for angle in latitude]
++    else:
++        points = [np.c_[ring, np.full(count, -0.5)]]
++        if kind == "cylinder":
++            points.append(np.c_[ring, np.full(count, 0.5)])
++    pos = np.vstack([*points, (0, 0, -0.5), (0, 0, 0.5)])
++    i = np.arange(count)
++    nxt = (i + 1) % count
++    bands = []
++    for lower in range(0, (len(points) - 1) * count, count):
++        upper = lower + count
++        bands.extend([np.c_[lower + i, lower + nxt, upper + nxt],
++                      np.c_[lower + i, upper + nxt, upper + i]])
++    top = (len(points) - 1) * count
++    faces = np.vstack([np.c_[nxt, i, np.full(count, len(pos) - 2)],
++                       *bands, np.c_[top + i, top + nxt, np.full(count, len(pos) - 1)]])
++    uv = pos[:, (0, 2)] + 0.5
++    return pos, uv, faces
++
++
++def _model(directory, model):
++    if not isinstance(model, str):
++        raise ValueError("model must be a relative path to a JSON mesh")
++    path = (directory / model).resolve()
++    if not path.is_relative_to(directory.resolve()) or path.suffix.lower() != ".json":
++        raise ValueError("model must be a JSON mesh within the override directory")
++    if path.stat().st_size > 5_000_000:
++        raise ValueError("landmark mesh exceeds 5 MB")
++    data = json.loads(path.read_text(encoding="utf-8"))
++    if not isinstance(data, dict):
++        raise ValueError("model JSON must be an object")
++    vertices, faces = data["vertices"], data["faces"]
++    if not isinstance(vertices, list) or not 3 <= len(vertices) <= 65_000:
++        raise ValueError("model must have 3 to 65,000 vertices")
++    if not isinstance(faces, list) or not 1 <= len(faces) <= 100_000:
++        raise ValueError("model must have 1 to 100,000 triangle faces")
++    pos = np.array([_vector(vertex, 3, -1, 1, "model vertex") for vertex in vertices])
++    if (pos[:, :2] < -0.5).any() or (pos[:, :2] > 0.5).any() or (pos[:, 2] < 0).any():
++        raise ValueError("model x, y must be in [-0.5, 0.5] and relative z in [0, 1]")
++    tri = np.asarray(faces)
++    if (tri.shape != (len(faces), 3) or not np.issubdtype(tri.dtype, np.integer)
++            or (tri < 0).any() or (tri >= len(pos)).any()):
++        raise ValueError("model faces must be triangles with valid zero-based vertex indices")
++    uv = data.get("uv")
++    if uv is None:
++        uv = pos[:, (0, 2)] + (0.5, 0.0)
++    elif isinstance(uv, list) and len(uv) == len(pos):
++        uv = np.array([_vector(item, 2, -1000, 1000, "model UV") for item in uv])
++    else:
++        raise ValueError("model UVs must match the vertex count")
++    return pos, uv, tri
++
++
++def _shape(scene, shape, dimensions):
++    parts = shape["parts"]
++    if not isinstance(parts, list) or not 1 <= len(parts) <= 128:
++        raise ValueError("shape requires 1 to 128 parts")
++    meshes = []
++    for part in parts:
++        center = _vector(part["center"], 3, -1, 1, "part center")
++        if center[2] < 0:
++            raise ValueError("part center height is relative to the base")
++        size = _vector(part["size"], 3, 0.001, 1, "part size")
++        orientation = _vector(part.get("rotation_deg", [0, 0, 0]), 3, -360, 360, "rotation_deg")
++        kind = part["kind"]
++        if kind == "box":
++            pos, uv, faces = box_mesh((0, 0, -0.5), (1, 1, 1))
++            bottom = np.array([[-0.5, -0.5, -0.5], [-0.5, 0.5, -0.5],
++                               [0.5, 0.5, -0.5], [0.5, -0.5, -0.5]])
++            faces = np.vstack([faces, np.array([[0, 1, 2], [0, 2, 3]]) + len(pos)])
++            uv = np.vstack([uv, bottom[:, :2] + 0.5])
++            pos = np.vstack([pos, bottom])
++        elif kind in ("cylinder", "ellipsoid", "cone"):
++            pos, uv, faces = _radial(kind)
++        else:
++            raise ValueError(f"unsupported landmark part {kind!r}")
++        # Rotation is applied to the part about its centre before translation.
++        material = _material(scene, part.get("material", "limestone"))
++        rotation = Rotation.from_euler("xyz", orientation, degrees=True)
++        meshes.append((material, rotation.apply(pos * size * dimensions) + center * dimensions, uv, faces))
++    return meshes
++
++
++def _landmark(scene, terrain, proj, zone, directory, entry, islands, road_surface):
++    x, y = _xy(proj, [entry["lat"], entry["lon"]])
++    point = Point(x, y)
++    if not zone.covers(point):
++        return None
++    size = _vector(entry["size_m"], 3, 0.05, 80, "size_m")
++    heading = _number(entry.get("heading_deg", 0), -360, 360, "heading_deg")
++    collider = _collider(entry)
++    if ("model" in entry) == ("shape" in entry):
++        raise ValueError("provide either model or shape")
++    if "model" in entry:
++        pos, uv, faces = _model(directory, entry["model"])
++        parts = [(_material(scene, entry.get("material", "limestone")), pos * size, uv, faces)]
++    else:
++        parts = _shape(scene, entry["shape"], size)
++    reference = entry.get("anchor", "auto")
++    if reference not in ("auto", "terrain", "road"):
++        raise ValueError("anchor must be auto, terrain, or road")
++    xy = np.array([[x, y]])
++    if reference == "road":
++        base = float(road_surface.sampler(point, terrain)(xy)[0])
++    else:
++        base = float(terrain.height(*xy.T)[0])
++    for footprint, sample, content in islands:
++        if entry["id"] in content and not footprint.covers(point):
++            raise ValueError("landmark lies outside the island that lists it")
++        if reference == "auto" and footprint.covers(point):
++            base = float(sample(xy)[0])
++    orientation = Rotation.from_euler("z", -heading, degrees=True)
++    positioned = [(mat, orientation.apply(pos) + (x, y, base), uv, faces) for mat, pos, uv, faces in parts]
++    footprint = shapely.MultiPoint(np.concatenate([pos[:, :2] for _, pos, _, _ in positioned])).convex_hull
++    if not zone.covers(footprint):
++        raise ValueError("landmark intersects the edge of the detailed zone")
++    for material, pos, uv, faces in positioned:
++        scene.add("mobiliario", material, pos, uv, faces, phys=collider)
++    return footprint
++
++
++def build(scene, proj, terrain, rect, zone, directory=None, *, log=print):
++    """Build walls, junction islands, and landmarks after the road mesh and terrain are final.
++
++    Entries have a source, a stable ID and a state. `todo` reserves a row for review.
++    Wall gate gaps are distances measured along the surveyed line from its start.
++    Landmark meshes use dimensions relative to a terrain or island placement point.
++    """
++    if directory is None:
++        return []
++    directory = Path(directory)
++    area = box(*rect) if zone is None else zone.intersection(box(*rect))
++    exclusions, islands, applied_landmarks = [], [], set()
++    stock = [(pieces, piece) for (group, _, _), pieces in scene.pieces.items()
++             if group == "isleta" for piece in pieces]
++    road_surface = None
++    for kind in ("walls", "junctions", "landmarks"):
++        path = directory / f"{kind}.json"
++        try:
++            entries = _load(path)
++        except (OSError, ValueError) as exc:
++            log(f"  overrides {kind}: invalid file: {exc}")
++            continue
++        applied = outside = pending = invalid = 0
++        metres = 0.0
++        seen = set()
++        for number, entry in enumerate(entries, 1):
++            try:
++                _entry(entry, seen)
++                if entry["state"] == "todo":
++                    pending += 1
++                    continue
++                if kind == "walls":
++                    pieces, length = _wall(scene, terrain, proj, area, entry)
++                    metres += length
++                elif kind == "junctions":
++                    if road_surface is None:
++                        road_surface = _RoadSurface(scene)
++                    built = _islands(scene, terrain, proj, area, road_surface, stock, entry)
++                    islands.extend(built)
++                    pieces = [polygon for polygon, _, _ in built]
++                else:
++                    if entry.get("anchor") == "road" and road_surface is None:
++                        road_surface = _RoadSurface(scene)
++                    landmark = _landmark(scene, terrain, proj, area, directory, entry, islands, road_surface)
++                    pieces = [] if landmark is None else [landmark]
++                    if pieces:
++                        applied_landmarks.add(entry["id"])
++                if pieces:
++                    exclusions.extend(pieces)
++                    applied += 1
++                else:
++                    outside += 1
++            except (KeyError, OSError, TypeError, ValueError, shapely.errors.GEOSException) as exc:
++                invalid += 1
++                identifier = entry.get("id", number) if isinstance(entry, dict) else number
++                log(f"  overrides {kind}: rejected {identifier}: {exc}")
++        unmatched = sorted({name for _, _, content in islands for name in content} - applied_landmarks)
++        if kind == "landmarks" and unmatched:
++            log(f"  overrides landmarks: island content unmatched: {', '.join(unmatched)}")
++        length = f", {metres:.1f} m" if kind == "walls" else ""
++        log(f"  overrides {kind}: {applied} applied, {outside} outside/unmatched, {pending} pending, {invalid} invalid{length}")
++    return exclusions
 diff --git a/openlaps/pipeline.py b/openlaps/pipeline.py
-index bd1fc54..6fc1093 100644
+index bd1fc54..38e5194 100644
 --- a/openlaps/pipeline.py
 +++ b/openlaps/pipeline.py
-@@ -270,6 +270,16 @@ def run(args, log=print, proj=None, scene=None, osm_data=None, pedazo=None, cat_
+@@ -5,6 +5,7 @@ import math
+ import os
+ import time
+ from concurrent.futures import ThreadPoolExecutor
++from pathlib import Path
+ 
+ import numpy as np
+ import shapely
+@@ -20,6 +21,7 @@ from .geo import BBox, LocalProjection
+ from .mesh import Scene
+ from .sources import osm as OSM, rasters, msbuildings, catastro, overture
+ from . import export_glb, export_ac, notas, regions, trafico
++from .koura_road_overrides import apply_road_overrides
+ 
+ ATTRIBUTION = """Atribuciones de datos de esta pista
+ - Calles, edificios y usos de suelo: (c) OpenStreetMap contributors, ODbL 1.0
+@@ -61,10 +63,18 @@ def _relieve(args, R, big, log):
+     return d, False
+ 
+ 
++def _koura_overrides(args):
++    directory = getattr(args, "koura_overrides", None)
++    return Path(directory) if directory is not None else None
++
++
+ def red_de_calles(args, proj, osm, log=lambda m: None):
+     """Solo la red de calles del área de `proj` (sin edificios, mallas ni texturas): lo que necesita el tráfico del
+     modo en vivo, que se calcula para una ventana grande alrededor del coche en unos segundos. Las alturas salen
+     del relieve; quien las use las ajusta luego a la calzada de verdad."""
++    overrides = _koura_overrides(args)
++    if overrides is not None:
++        osm = apply_road_overrides(osm, overrides / "roads.json", proj, log=log)
+     R = regions.set_active(regions.elegir(args.region, getattr(args, "subregion", "auto"), proj.lat0, proj.lon0))
+     rect = (proj.xmin, proj.ymin, proj.xmax, proj.ymax)
+     big = proj.bbox().padded(450)
+@@ -191,6 +201,9 @@ def run(args, log=print, proj=None, scene=None, osm_data=None, pedazo=None, cat_
+         scene = preparar_escena(args, log)
+ 
+     osm = f_osm.result()
++    overrides = _koura_overrides(args)
++    if overrides is not None:
++        osm = apply_road_overrides(osm, overrides / "roads.json", proj, log=log)
+     log(f"  {len(osm['ways'])} vías, {len(osm['areas'])} áreas, {len(osm['nodes'])} nodos sueltos")
+     log("2/7 Relieve y cobertura de suelo…")
+     dem, dem_is_dtm = f_dem.result()
+@@ -210,7 +223,8 @@ def run(args, log=print, proj=None, scene=None, osm_data=None, pedazo=None, cat_
+ 
+     # ------------------------------------------------------------ zona urbana
+     log("3/7 Edificios y zonas urbanas…")
+-    blds = B.collect(osm, ms, proj, rect, log=log, cat_parts=cat, alturas=ov)
++    blds = B.collect(osm, ms, proj, rect, log=log, cat_parts=cat, alturas=ov,
++                     override_file=overrides / "buildings.json" if overrides is not None else None)
+     urban_parts = [b["poly"].buffer(22) for b in blds]
+     areas = []
+     for a in osm["areas"]:
+@@ -270,6 +284,16 @@ def run(args, log=print, proj=None, scene=None, osm_data=None, pedazo=None, cat_
          cob.quieta = [g for g in cob.quieta if g.intersects(zona)]
          cob.corriente = [g for g in cob.corriente if g.intersects(zona)]
          log(f"  corredor: {zona.area / 1e6:.2f} km² de {area_km2:.1f} ({len(blds)} de {antes} edificios)")
@@ -32,7 +1262,7 @@ index bd1fc54..6fc1093 100644
      blds_poly_pre = unary_union([b["poly"] for b in blds]) if blds else None
      has_gr = any(b["tags"].get("barrier") == "guard_rail" for b in osm.get("barriers", []))
      rails = []
-@@ -315,7 +325,10 @@ def run(args, log=print, proj=None, scene=None, osm_data=None, pedazo=None, cat_
+@@ -315,7 +339,10 @@ def run(args, log=print, proj=None, scene=None, osm_data=None, pedazo=None, cat_
          X.tv_cameras(scene, route)
          info_run = "clockwise" if args.modo == "circuito" else "A-B"
      elif pedazo is None:
@@ -44,7 +1274,33 @@ index bd1fc54..6fc1093 100644
  
      # ------------------------------------------------------------ terreno
      log("5/7 Terreno: tallado y textura…")
-@@ -438,8 +451,7 @@ def run(args, log=print, proj=None, scene=None, osm_data=None, pedazo=None, cat_
+@@ -371,10 +398,16 @@ def run(args, log=print, proj=None, scene=None, osm_data=None, pedazo=None, cat_
+     log(f"  detalles: orillas en {ne} tramos, desgaste en {nw}, {nl} arbotantes, señales: "
+         + ", ".join(f"{k} {v}" for k, v in sg.items()))
+     excl = [rd["road_union"].buffer(2.0)] if rd["road_union"] is not None else []
++    if overrides is not None:
++        from . import koura_scenery
++        excl.extend(koura_scenery.build(scene, proj, terr, rect, zona, overrides, log=log))
+     if rd["sidewalks"] is not None:
+         excl.append(rd["sidewalks"].buffer(0.5))
+     if blds_poly is not None:
+         excl.append(blds_poly.buffer(1.5))
++    manual_clearance = unary_union([b["poly"].buffer(2.0) for b in blds if b["src"] == "manual"])
++    if not manual_clearance.is_empty:
++        excl.append(manual_clearance)
+     if water_poly is not None:
+         excl.append(water_poly)
+     if rd.get("tunnel_poly") is not None:      # ni árboles sobre la tapa del túnel ni en sus bocas
+@@ -390,6 +423,8 @@ def run(args, log=print, proj=None, scene=None, osm_data=None, pedazo=None, cat_
+         x, y = proj.to_local([n["lon"] for n in trees], [n["lat"] for n in trees])
+         osm_trees = np.column_stack([x, y])
+         inside = (x > proj.xmin) & (x < proj.xmax) & (y > proj.ymin) & (y < proj.ymax)
++        if not manual_clearance.is_empty:
++            inside &= ~shapely.intersects_xy(manual_clearance, x, y)
+         osm_trees = osm_trees[inside]
+     trunks = V.build(scene, terr, lc, proj, exclude, osm_trees, density=args.vegetacion,
+                      road_pts=rd["carve"][:, :2] if len(rd["carve"]) else None, chm=chm, log=log)
+@@ -438,8 +473,7 @@ def run(args, log=print, proj=None, scene=None, osm_data=None, pedazo=None, cat_
      log(f"  {glb} ({size / 1e6:.1f} MB)")
      if args.ac:
          # el muro invisible de borde queda en el .glb, pero en AC estorbaría si el usuario activa el modo en vivo
@@ -54,7 +1310,7 @@ index bd1fc54..6fc1093 100644
          thumb = prev.copy()
          thumb.thumbnail((512, 512))
          bio = io.BytesIO()
-@@ -452,7 +464,7 @@ def run(args, log=print, proj=None, scene=None, osm_data=None, pedazo=None, cat_
+@@ -452,7 +486,7 @@ def run(args, log=print, proj=None, scene=None, osm_data=None, pedazo=None, cat_
                      s2_years=f" ({', '.join(sorted(rasters.S2_YEARS))})" if rasters.S2_YEARS else "") + "".join("- " + a + chr(10) for a in R.attribution),
                  "description": f"Generada con openlaps a partir de datos abiertos. {area_km2:.2f} km².",
                  "tags": [t for t in (R.code, R.sub, "openlaps", args.modo) if t], "length": length or rd["stats"]["km"] * 1000, "run": info_run,
@@ -63,7 +1319,7 @@ index bd1fc54..6fc1093 100644
                  "ai_hw": route_hw, "width": int(round(float(np.median(route_hw)) * 2)) if route_hw is not None else "",
                  "closed": args.modo == "circuito", "notas": notas_ruta,
                  "rect": [float(proj.xmin), float(proj.ymin), float(proj.xmax), float(proj.ymax)],
-@@ -807,6 +819,42 @@ def _place_stage(scene, net, route, route_hw, legs, closed, log=print):
+@@ -807,6 +841,42 @@ def _place_stage(scene, net, route, route_hw, legs, closed, log=print):
      log(f"  salida, meta y {closed_n} calles laterales cerradas con vallas")
  
  
@@ -142,7 +1398,7 @@ index 8aba20d..64c3e4d 100644
          return EU
      return GENERIC
 diff --git a/openlaps/roads.py b/openlaps/roads.py
-index cc51fa9..172de08 100644
+index cc51fa9..41f5d4c 100644
 --- a/openlaps/roads.py
 +++ b/openlaps/roads.py
 @@ -19,6 +19,7 @@ Pasos del algoritmo (ver README para la explicación larga):
@@ -153,7 +1409,16 @@ index cc51fa9..172de08 100644
  import math
  import re
  from dataclasses import dataclass, field
-@@ -407,11 +408,11 @@ def radio_vertical_min(v_kmh):
+@@ -305,6 +306,8 @@ class Edge:
+     sidewalk: bool = False
+     perfil: tuple = None   # camino sin asfalto: (roderas, bombeo, baches, ancho, posiciones de rodera), ver PERFIL_CAMINO
+     F: np.ndarray = None   # cuánto perfil lleva cada punto de `s` (0 en las curvas muy cerradas)
++    way_ids: list = field(default_factory=list)
++    overridden_tags: bool = False
+ 
+     @property
+     def length(self):
+@@ -407,11 +410,11 @@ def radio_vertical_min(v_kmh):
      return float(np.clip(0.18 * v_kmh ** 2, 60.0, 3000.0))
  
  
@@ -167,7 +1432,7 @@ index cc51fa9..172de08 100644
          return z
      kmax = 1.0 / radio_vertical_min(v_kmh)
      z0 = np.asarray(z, float)
-@@ -431,7 +432,7 @@ def _acuerdos_verticales(s, z, v_kmh, desvio=2.0, iters=400):
+@@ -431,7 +434,7 @@ def _acuerdos_verticales(s, z, v_kmh, desvio=2.0, iters=400):
          lap[1:-1] = 0.5 * (z[:-2] + z[2:]) - z[1:-1]
          z = np.where(m, z + 0.5 * lap, z)
          z = np.clip(z, z0 - desvio, z0 + desvio)
@@ -176,7 +1441,7 @@ index cc51fa9..172de08 100644
      return z
  
  
-@@ -492,7 +493,10 @@ class RoadNetwork:
+@@ -492,7 +495,10 @@ class RoadNetwork:
          self._build_graph(osm)
          self._geometry()
          self._elevation()
@@ -188,7 +1453,74 @@ index cc51fa9..172de08 100644
          self._superelevation()
          self._trims()
          self._runs()
-@@ -839,6 +843,11 @@ class RoadNetwork:
+@@ -548,14 +554,16 @@ class RoadNetwork:
+             for nid in seq[1:]:
+                 cur.append(nid)
+                 if use.get(nid, 0) >= 2 and nid != seq[-1]:
+-                    raw.append((cur, w["tags"]))
++                    raw.append((cur, w))
+                     cur = [nid]
+             if len(cur) >= 2:
+-                raw.append((cur, w["tags"]))
++                raw.append((cur, w))
+         edges = []
+         deducidas = self._superficies(raw)
+-        for i, (nodes, tags) in enumerate(raw):
+-            e = Edge(id=i, nodes=list(nodes), tags=tags, cls=tags["highway"])
++        for i, (nodes, way) in enumerate(raw):
++            tags = way["tags"]
++            e = Edge(id=i, nodes=list(nodes), tags=tags, cls=tags["highway"],
++                     way_ids=[way["id"]], overridden_tags=way.get("overridden_tags", False))
+             self._attrs(e, deducidas[i])
+             e.a, e.b = nodes[0], nodes[-1]
+             edges.append(e)
+@@ -743,10 +751,11 @@ class RoadNetwork:
+         fijo = [False] * n        # se sabe (por etiqueta o por señales): no se deduce encima
+         fuerte = [False] * n      # dato de OSM o deducido de uno: es el que se propaga a los vecinos
+         if self.terraceria == "osm":
+-            return ["ground" if t.get("highway") in C.VEREDAS else None for _, t in raw]
++            return ["ground" if w["tags"].get("highway") in C.VEREDAS else None for _, w in raw]
+         suelta = lambda s: C.SURFACE_MAP.get(s) == "terraceria"  # noqa: E731
+         malas = ("bad", "very_bad", "horrible", "very_horrible", "impassable")
+-        for i, (nodes, t) in enumerate(raw):
++        for i, (nodes, w) in enumerate(raw):
++            t = w["tags"]
+             cls = t.get("highway")
+             if t.get("surface") in C.SURFACE_MAP:
+                 sup[i], fijo[i], fuerte[i] = t["surface"], True, True
+@@ -774,10 +783,11 @@ class RoadNetwork:
+         for i, (nodes, _) in enumerate(raw):
+             for k in {nodes[0], nodes[-1]}:
+                 en_nodo.setdefault(k, []).append(i)
+-        nombre = lambda i: raw[i][1].get("name") or raw[i][1].get("ref")  # noqa: E731
++        tags = [w["tags"] for _, w in raw]
++        nombre = lambda i: tags[i].get("name") or tags[i].get("ref")  # noqa: E731
+         # solo vale de testigo un tramo de la misma categoría o mayor: de casi toda carretera asfaltada salen
+         # brechas (highway=track), y eso no la hace de tierra
+-        rango = lambda i: C.ROAD_CLASS.get(raw[i][1].get("highway"), C.ROAD_CLASS["road"])[5]  # noqa: E731
++        rango = lambda i: C.ROAD_CLASS.get(tags[i].get("highway"), C.ROAD_CLASS["road"])[5]  # noqa: E731
+         vecinos = 0
+         for _ in range(60):
+             nuevos = {}
+@@ -789,7 +799,7 @@ class RoadNetwork:
+                     otros = [j for j in en_nodo[k] if j != i]
+                     sabidos = [j for j in otros if fuerte[j] and rango(j) >= rango(i)]
+                     cont += [j for j in sabidos if len(otros) == 1 or (nombre(i) and nombre(i) == nombre(j))]
+-                    ramal += [j for j in sabidos if raw[j][1].get("highway") in C.CLASES_MENORES]
++                    ramal += [j for j in sabidos if tags[j].get("highway") in C.CLASES_MENORES]
+                 if cont:
+                     # continuación: el otro tramo de un nodo de dos, o el que lleva el mismo nombre
+                     if len({suelta(sup[j]) for j in cont}) == 1:
+@@ -809,7 +819,7 @@ class RoadNetwork:
+         forzar = self.terraceria == "rural"
+         if forzar or (regions.active().rural_sin_asfalto and self.urban_fn is not None):
+             for i in range(n):
+-                if not fijo[i] and (forzar or raw[i][1].get("highway") in ("unclassified", "road")):
++                if not fijo[i] and (forzar or tags[i].get("highway") in ("unclassified", "road")):
+                     sup[i], region = "unpaved", region + 1
+         if vecinos or region:
+             self.log(f"  terracería deducida en {vecinos + region} tramos sin dato en OSM "
+@@ -839,6 +849,11 @@ class RoadNetwork:
              e.mat = "asfalto"
          e.phys = C.PHYS_SUELTA.get(surf, "LOOSE") if e.mat == "terraceria" else C.PHYS_KEY[e.mat]
          e.bridge = t.get("bridge") not in (None, "no")
@@ -200,7 +1532,24 @@ index cc51fa9..172de08 100644
          e.tunnel = t.get("tunnel") not in (None, "no", "building_passage")
          e.layer = _layer(t.get("layer"))
          width = _num(t.get("width"))
-@@ -922,6 +931,84 @@ class RoadNetwork:
+@@ -863,10 +878,16 @@ class RoadNetwork:
+             e1, e2 = inc
+             if e1 is e2 or e1.key_attrs() != e2.key_attrs():
+                 continue
++            if (e1.overridden_tags or e2.overridden_tags) and e1.tags != e2.tags:
++                continue  # keep edited speeds, lane tags and road markings on their own stretches
+             n1 = e1.nodes if e1.b == nid else e1.nodes[::-1]
+             n2 = e2.nodes if e2.a == nid else e2.nodes[::-1]
+             if e1.oneway and (e1.b != nid or e2.a != nid):
+                 continue  # no unir sentidos únicos opuestos
++            ids1 = e1.way_ids if e1.b == nid else e1.way_ids[::-1]
++            ids2 = e2.way_ids if e2.a == nid else e2.way_ids[::-1]
++            e1.way_ids = ids1 + ids2
++            e1.overridden_tags |= e2.overridden_tags
+             e1.nodes = n1 + n2[1:]
+             e1.a, e1.b = e1.nodes[0], e1.nodes[-1]
+             if e1.a == e1.b:
+@@ -922,6 +943,84 @@ class RoadNetwork:
          self.edges = [e for e in self.edges if e.P is not None and len(e.P) >= 2 and e.s[-1] > 0.5]
  
      # ---------------------------------------------------------------- 3. alzado
@@ -285,7 +1634,7 @@ index cc51fa9..172de08 100644
      def _chains(self):
          """Une los tramos que siguen rectos a través de un cruce (la misma calle) en cadenas.
  
-@@ -979,6 +1066,7 @@ class RoadNetwork:
+@@ -979,6 +1078,7 @@ class RoadNetwork:
  
      def _elevation(self):
          prof = {}
@@ -293,7 +1642,7 @@ index cc51fa9..172de08 100644
          # perfil suavizado a lo largo de cada cadena completa: sin quiebres en los cruces rectos
          for chain in self._chains():
              pts, owners = [], []
-@@ -991,12 +1079,17 @@ class RoadNetwork:
+@@ -991,12 +1091,17 @@ class RoadNetwork:
              z = self.dem_z(P[:, 0], P[:, 1])
              s = np.concatenate([[0], np.cumsum(np.linalg.norm(np.diff(P, axis=0), axis=1))])
              sig_m = max(e.sigma for e, _ in chain)
@@ -312,7 +1661,7 @@ index cc51fa9..172de08 100644
                  if start:
                      seg = np.concatenate([[zs[pos - 1]], zs[pos:pos + n - 1]])
                      pos += n - 1
-@@ -1004,6 +1097,12 @@ class RoadNetwork:
+@@ -1004,6 +1109,12 @@ class RoadNetwork:
                      seg = zs[pos:pos + n]
                      pos += n
                  prof[e.id] = seg if fwd else seg[::-1]
@@ -325,7 +1674,7 @@ index cc51fa9..172de08 100644
          # altura de cada nodo: promedio de los extremos de las calles normales que llegan
          # la vía de mayor jerarquía casi no se mueve (peso x3 por cada nivel de prioridad); las
          # secundarias se adaptan a ella con una transición larga
-@@ -1015,6 +1114,13 @@ class RoadNetwork:
+@@ -1015,6 +1126,13 @@ class RoadNetwork:
                  a[0] += val * w
                  a[1] += w
          self.node_z = {n: v[0] / v[1] for n, v in acc.items()}
@@ -339,7 +1688,7 @@ index cc51fa9..172de08 100644
          self._libres = {}
          self._estructuras_en_cadena()
          self._bocas_hundidas()
-@@ -1022,6 +1128,38 @@ class RoadNetwork:
+@@ -1022,6 +1140,38 @@ class RoadNetwork:
          # (se suponía la bajada ya hundida en el MDT, y casi nunca lo está): la calle caía 6 m en 30 m justo
          # en la boca, el coche salía volando a 60 km/h y se estrellaba contra el techo. Ahora la boca ya va
          # hundida (_bocas_hundidas) y dentro baja como mucho un ~10 %.
@@ -378,7 +1727,7 @@ index cc51fa9..172de08 100644
          cobertura, rampa = 7.3, 60.0
          for e in self.edges:
              za, zb = self.node_z[e.a], self.node_z[e.b]
-@@ -1046,9 +1184,29 @@ class RoadNetwork:
+@@ -1046,9 +1196,29 @@ class RoadNetwork:
                  zs = prof[e.id]
                  L = e.s[-1]
                  D = max(min(12.0, L * 0.5), min(60.0, L * 0.5))
@@ -411,7 +1760,7 @@ index cc51fa9..172de08 100644
  
      def _bocas_hundidas(self, hundir=3.0, pendiente=0.08):
          """Boca de un túnel (nodo con calles normales y túnel): se hunde hasta `hundir` m, y la calle que llega
-@@ -1159,6 +1317,13 @@ class RoadNetwork:
+@@ -1159,6 +1329,13 @@ class RoadNetwork:
                      z1_on_2 = np.interp(d2, np.sort(d1), z1[np.argsort(d1)])
                      e1.Z = z1 + w1 * ((z1 + z2_on_1) / 2 - z1)
                      e2.Z = z2 + w2 * ((z2 + z1_on_2) / 2 - z2)
@@ -425,7 +1774,7 @@ index cc51fa9..172de08 100644
                      changed += 1
          return changed
  
-@@ -1511,6 +1676,125 @@ def armonizar_calzadas(scene, celda=0.5, banda=1.6, sigma=1.5, log=print):
+@@ -1511,6 +1688,125 @@ def armonizar_calzadas(scene, celda=0.5, banda=1.6, sigma=1.5, log=print):
              + (f", {cuenta['parches']:.0f} m² de rendijas tapadas" if cuenta["parches"] else ""))
  
  
@@ -551,7 +1900,7 @@ index cc51fa9..172de08 100644
  def _superficie_comun(scene, piezas, extra, en_estructura, celda, banda, sigma, cuenta):
      """Un nivel del repaso (ver armonizar_calzadas): ajusta `piezas` (y `extra`, que solo opina y se mueve donde
      va a ras de las demás) a una superficie común. Devuelve los campos para lo que va pegado a la calzada."""
-@@ -1798,6 +2082,87 @@ def _agrupar_cruces(net, solape_min=0.5):
+@@ -1798,6 +2094,87 @@ def _agrupar_cruces(net, solape_min=0.5):
      return out, cascos
  
  
@@ -639,7 +1988,7 @@ index cc51fa9..172de08 100644
  def _altura_cruce(inc, centros):
      """Función (xy Nx2) -> z de la superficie de un cruce.
  
-@@ -2079,6 +2444,8 @@ def build_roads(net: RoadNetwork, scene, buildings_poly=None, water_poly=None, u
+@@ -2079,6 +2456,8 @@ def build_roads(net: RoadNetwork, scene, buildings_poly=None, water_poly=None, u
              verts, faces = np.vstack(vs), np.vstack(fs)
          if len(faces) == 0:
              continue
@@ -648,7 +1997,7 @@ index cc51fa9..172de08 100644
          # altura: mezcla de los planos de cada calle que llega (ver _altura_cruce)
          zf = _altura_cruce(inc, centros)
          z = zf(verts)
-@@ -2131,12 +2498,53 @@ def build_roads(net: RoadNetwork, scene, buildings_poly=None, water_poly=None, u
+@@ -2131,12 +2510,59 @@ def build_roads(net: RoadNetwork, scene, buildings_poly=None, water_poly=None, u
          # solo el contorno del cruce (los vértices de earcut están todos en el contorno)
          surf_pts.append(pos)
  
@@ -671,6 +2020,7 @@ index cc51fa9..172de08 100644
 +            arbol_s = cKDTree(sv[:, :2])
 +            ref = min((e for _, e in road_polys), key=lambda e: 0)
 +            m2 = 0.0
++            filled = 0
 +            for h in huecos:
 +                hb = h.buffer(0.15, join_style=2)
 +                v_, f_ = triangulate_polygon(hb, 2.0)
@@ -684,8 +2034,13 @@ index cc51fa9..172de08 100644
 +                road_polys.append((hb, ref))
 +                carve_pts.append(np.column_stack([v_, z_, np.full(len(v_), 1.2)]))
 +                m2 += h.area
++                filled += 1
++                if hasattr(net.proj, "to_lonlat"):
++                    point = h.representative_point()
++                    lon, lat = net.proj.to_lonlat(point.x, point.y)
++                    log(f"  hueco asfaltado: {lat:.7f},{lon:.7f} ({h.area:.1f} m²)")
 +            road_union = unary_union([p for p, _ in road_polys])
-+            log(f"  {len(huecos)} huecos dentro de la calzada asfaltados ({m2:.0f} m²)")
++            log(f"  {filled} huecos dentro de la calzada asfaltados ({m2:.0f} m²)")
      _add_skirts(scene, skirts, road_union)
      # ---- repaso: una sola superficie continua (lo que se construye después la sigue: seguir_realce)
 -    armonizar_calzadas(scene, log=log)
@@ -703,6 +2058,35 @@ index cc51fa9..172de08 100644
  
      # ---- rayas, pasos peatonales y topes
      _markings(net, scene, stats)
+diff --git a/openlaps/sources/osm.py b/openlaps/sources/osm.py
+index 74fffd9..8fb1d3c 100644
+--- a/openlaps/sources/osm.py
++++ b/openlaps/sources/osm.py
+@@ -258,7 +258,7 @@ def parse(data):
+     """Devuelve dict con listas de elementos ya separados por tipo.
+ 
+     ways: lista de dict(id, tags, nodes=[ids], coords=[(lon,lat)])
+-    areas: lista de dict(tags, outer=[(lon,lat)...], inners=[[...]])
++    areas: lista de dict(id, type, tags, outer=[(lon,lat)...], inners=[[...]])
+     nodes: lista de dict(id, tags, lon, lat)
+     barriers: lista de dict(tags, coords) con guardarraíles, muros y barreras dibujados en OSM
+     coast: lista de líneas de costa [(lon,lat)...] (natural=coastline: tierra a la izquierda, mar a la derecha)
+@@ -289,7 +289,7 @@ def parse(data):
+             elif tags.get("power") in ("line", "minor_line"):
+                 power.append({"tags": tags, "coords": coords, "nodes": el.get("nodes", [])})
+             elif is_area:
+-                areas.append({"tags": tags, "outer": coords, "inners": []})
++                areas.append({"id": el["id"], "type": t, "tags": tags, "outer": coords, "inners": []})
+             elif "waterway" in tags:
+                 ways.append(w)
+         elif t == "relation" and "members" in el:
+@@ -299,5 +299,5 @@ def parse(data):
+                       for m in el["members"] if m.get("type") == "way" and m.get("role") == "inner"]
+             inner_rings = _join_rings(inners)
+             for ring in _join_rings(outers):
+-                areas.append({"tags": tags, "outer": ring, "inners": inner_rings})
++                areas.append({"id": el["id"], "type": t, "tags": tags, "outer": ring, "inners": inner_rings})
+     return {"ways": ways, "areas": areas, "nodes": nodes, "barriers": barriers, "power": power, "coast": coast, "rails": rails}
 diff --git a/openlaps/sources/rasters.py b/openlaps/sources/rasters.py
 index e65f7e9..5ab229c 100644
 --- a/openlaps/sources/rasters.py

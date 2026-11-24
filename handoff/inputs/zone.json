@@ -276,6 +276,28 @@
      3072
     ]
    }
+  },
+  "W8": {
+   "title": "Btouratij statue junction and approaches (WP8 test)",
+   "terrain_res_m": 2.0,
+   "parts": [
+    {
+     "type": "box",
+     "south": 34.3583,
+     "west": 35.8365,
+     "north": 34.3621,
+     "east": 35.841
+    }
+   ],
+   "expected": {
+    "zone_km2": 0.17,
+    "rect_local_m": [
+     512,
+     3072,
+     1024,
+     3584
+    ]
+   }
   }
  },
  "routes": {

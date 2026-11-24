@@ -30,3 +30,8 @@ handoff/evidence/btouratij_poc_c*.jpg
 # pinned reference checkouts (WP0)
 mapcreator/
 road-to-assetto/
+
+# Private photo textures and models used by local overrides
+koura/overrides/facades/
+koura/overrides/models/
+koura/overrides/private/

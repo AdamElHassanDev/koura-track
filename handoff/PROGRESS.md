@@ -41,7 +41,7 @@ State how each item was checked: static, render, probe, or owner drove it.
 | | WP5 Zone build and **stage 1** | S1 builds in 3 minutes from `zone.json` with the pinned origin. Render viewpoints and gate not done | |
 | | WP6 Performance work | Not started, except a memory cap and a coarser merge grid on large stages. Frame rate never measured | |
 | | WP7 **Stage 2**, the loop | S2 builds in 17 to 20 minutes and is installed (build 9). Gate not run | |
-| | WP8 OSM ids and override files | Not started | |
+| 2026-11-24 | WP8 OSM ids and override files | Gate passed on the Btouratij memorial junction test build. All five override files are wired up, and road edges carry the source way IDs. | Before/after renders, network sidecars, fork tests and **in-game probe**. Details below. |
 | | WP9 Footage and recordings | Online videos listed, not downloaded or watched | |
 | | WP10 Stage 3 and detail passes | Not started | |
 | | WP11 Karting Mania kart track | Traced (`koura/kart_pts.py`, about 1.5 m accuracy) and built as one surface on one plane. Not done: walls, kerbs, colour, pit building, timing, own layout, real slope | |
@@ -49,7 +49,17 @@ State how each item was checked: static, render, probe, or owner drove it.
 | | WP13 Detail pass outside the green box | Not started | |
 | | WP14 Ground inside the loop | Not started | |
 
-**Next package:** WP8. Order: `BASE.md` section 8.
+**Next package:** WP11. Order: `BASE.md` section 8.
+
+## WP8 override gate
+
+The W8 gate build demonstrated the width change on OSM way 323610799 (7 to 13 m), the added earth access, the moved first bend on way 701086684, and the test removal of way 712015957. The road sidecars confirm the final way IDs and the 4 m width of the new access. The building gate replaced the generic Oliva footprint with a signed, tiled building at the same location, corrected the memorial-side house from one to three floors and added its photographed facade, and temporarily removed a separate source footprint. The road and building reports each logged four applied operations, one intentionally unmatched control, and zero rejected records. The temporary removals and all road changes are confined to the gate fixture pending the route audit.
+
+The W8 build added one surveyed non-circular island, two landmark entries (memorial and railings), and 52.6 m of collidable stone wall with a 5 m gate opening. The 2020 street footage shows the island, railing, gate and house. Esri zooms 18 and 19 fix the position. The statue outline, kerb plan and wall height are modelled estimates, and the Oliva name is on the photographed facade band. Recheck the kerb, wall and statue after heights. Sources include [Saed Alhassan’s street tour](https://www.youtube.com/watch?v=8gIn9XWJ_4Y&t=19s), [the memorial ceremony](https://www.lebanese-forces.com/2014/10/20/wissam-hassan-btouratij/), and [IPT’s Oliva album](https://www.iptgroup.com.lb/GalleryPopUp.aspx?FolderID=8440).
+
+Evidence is local in `out/wp8/compare-{approach,village-turn,aerial,oliva}.jpg`, `out/W8/gate-check/build.log`, `out/W8/gate-check/verify.json`, and `out/wp8/ingame/report.json`. W8 took 24 s and peaked at 1.08 GiB RSS (unmodified W8, 27 s and 1.20 GiB). Fork tests: 142 passed, 1 skipped. Static W8: ten passes, one expected failure, three failures (surface, traffic and clipped network), two unavailable (imagery counter and boundary-only group), four not applicable. The in-game probe passed all three positions, with all wheels on `ROAD`, all raycasts hitting, maximum 1.03 m displacement, and 476 minimum / 517 median FPS on this small test. The game closed and `race.ini` was restored byte-for-byte.
+
+The verified scenery and building edits are retained locally in `koura/overrides/private/`. This set contains no gate-only deletions or road operations. The S2 build with that set is checked separately against Build 9 before replacing the preview. The owner also confirmed whole-map detail including real signs, and in-game night-lighting acceptance under WP10.
 
 ## For the road-height work
 

@@ -21,6 +21,12 @@ The owner lives in Btouratij and knows every corner of it. They will notice a mi
 
 **Level 3, exact copy: Karting Mania.** A replica, built and checked item by item (work package 11).
 
+### Whole-map detail and night lighting
+
+The owner confirmed on 2026-11-24 that the high-detail pass applies to the whole drivable map. Btouratij and Nakhle remain first in the work order. Give houses, businesses, names and signs, walls, vegetation and junction landmarks the same source-based treatment as each stretch is completed. Apply this to new drivable ground when it opens. Unseen detail belongs on the filming list.
+
+The owner also requires working night lighting. Check street lamps, junctions, landmarks, and lit business signs where the source shows lighting. Verify the night build in Assetto Corsa from the driver's seat and record frame rate with the lights active. WP10 owns the night pass.
+
 ## Level 1 in practice: what "everything" means
 
 For every street in Btouratij and Nakhle, go along it in the footage and write down every object that a person could point at. Each one is either built at its real place or listed as "seen, could not place". The list below is the minimum; add whatever else the footage shows.
