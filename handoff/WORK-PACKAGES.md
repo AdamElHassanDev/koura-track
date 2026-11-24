@@ -285,6 +285,14 @@ Do this on S1, where a real frame-rate number exists, before building S2.
 
 ## WP8. OSM ids and override files (lane D)
 
+**Added 2026-11-24.** Besides the files in the steps below, create three more, because `DETAIL-STANDARD.md` section 5 stores its work in them. Each is read by `koura/build.py`, every entry is positioned by latitude and longitude, and no entry holds an absolute height.
+
+- `koura/overrides/walls.json`: lines with `height_m` above ground, `material`, `collider` (default true), optional `gaps` for gates and driveways, `source`, `state`.
+- `koura/overrides/landmarks.json`: one-off objects (statues, monuments, shrines, fountains, entrance signs): position, heading, size, model file or shape description, `collider`, `source`, `state`.
+- `koura/overrides/junctions.json`: per junction, the real outline: roundabout centre and diameters, islands as polygons with their content, splitter islands, kerb height (at most 0.08 m, sloped). This changes the road in plan view only; in `roads.py` it may add geometry on top of the built surface but must not change the reserved height functions (`BASE.md` section 4).
+
+Add one of each to this package's gate build: one wall with a gate gap, one landmark with a collider, one roundabout with an island (use the Btouratij junction with the statue).
+
 **Changes:** `openlaps/openlaps/sources/osm.py`, `roads.py`, `buildings.py`, `pipeline.py`; new `koura/overrides/*.json`.
 
 **Steps**

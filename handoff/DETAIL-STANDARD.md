@@ -72,7 +72,7 @@ Generic is allowed here only for: house fronts with no photo, small roadside clu
 
 ## Added by the owner on 2026-11-23, after driving the base
 
-These four points are as binding as the rest of this document. The owner's words are quoted.
+These points are as binding as the rest of this document. The owner's words are quoted.
 
 ### 1. Roads: smooth surface, real elevation
 
@@ -106,6 +106,53 @@ These four points are as binding as the rest of this document. The owner's words
 - Trees stand where the aerial image shows them, in rows where the groves are in rows, at the right density. Olive, pine, cypress, oak, citrus and palm are told apart. The base places trees from a canopy height model (20,326 olives, 7,371 pines, 5,469 oaks, 6,057 shrubs in stage 2), which gives approximate positions and guessed species. Compare with the image grove by grove and correct from the image.
 - Stone terrace walls, garden walls, retaining walls beside the road, fences and gates are traced from the aerial image and street-level photographs, at the right height and material. A road cut into a hillside has its retaining wall; a road above a field has its drop and its low wall.
 - Check each stretch against a photograph or a video frame of the same place, side by side, and keep the pair in `evidence/` (outside the public repository if it contains imagery).
+
+### 5. Small details: roundabouts, statues, detailed buildings, walls
+
+Added 2026-11-24. The owner asked for the focus to be on "a lot of small details like roundabouts, for example, statues, detailed buildings, etc., etc., and walls."
+
+Small details are what make a place recognisable at driving speed. They are not an extra pass at the end: every stretch of road is finished with its small details before the next stretch is started. A stretch with generic boxes and no walls is not done, however many kilometres are covered.
+
+**Roundabouts and junctions**
+
+- Every roundabout is built as a roundabout: the real diameter, a raised centre island with its real content (planting, stone edging, a statue, a monument, a fountain, a sign, a flagpole), the real number of arms, splitter islands on the arms where they exist, and the real kerb line.
+- The base draws junctions as wide flat patches with nothing in them. Replace each one on a named route with its real outline from the aerial image: islands, painted areas, widened corners, bus bays, parking in front of shops.
+- First on the list: the Btouratij junction with the statue. The owner named it. Then every roundabout and island junction on the loop, then the rest.
+- This is plan-view work and is open to the detail agent. The heights of the road surface stay reserved (`BASE.md` section 4): an island or a statue sits on the road height that the build gives it.
+- Kerbs: the owner had pavement kerbs removed because they damaged the car. Island and roundabout kerbs are allowed where they are real, at most 8 cm high with a sloped face, so that a car that clips one is not damaged. Never put a vertical kerb beside a driving line.
+
+**Statues, monuments and one-off objects**
+
+- Every statue, monument, shrine, cross, memorial, fountain, village entrance sign and arch that can be seen from a route is placed, at its real position and its real size.
+- Each one is modelled individually from photographs. A recognisable simple shape with the right proportions and colour is acceptable; an empty place or a generic stand-in is not.
+- Find them from the owner's video, street-level imagery, the online videos in `DASHCAM.md`, municipality and church social media pages, and map place photos. List each one in `koura/overrides/landmarks.json` with position, source and state (`todo`, `shape`, `textured`).
+- Give each a collider if a car could hit it.
+
+**Detailed buildings**
+
+- A building facing a route is more than a box: the right number of floors and floor height, balconies where they exist, the roof (flat with tank and stair house, or tiled, with the real pitch), the ground floor as it is (shop front with its sign and shutters, garage, open pillars, entrance steps), external stairs, and the wall material and colour.
+- Shops, restaurants, petrol stations, pharmacies, banks and bakeries carry their real name on a sign in the real colours. Signs are how the owner knows where they are.
+- Churches, mosques, schools, the municipality and other public buildings get an individual model: bell tower, dome, minaret, arches, courtyard wall and gate.
+- Unfinished buildings (bare concrete frames, columns with reinforcing bars on the roof) are common in the area and are modelled as unfinished.
+- Order of work on every stretch: landmarks first, then buildings on the outside of bends and at junctions (they are in view longest), then the rest.
+
+**Walls**
+
+- Every wall that borders a route is built: garden walls, stone terrace walls in the groves, retaining walls in cuttings, concrete block walls, low walls with railings on top, gates and gate pillars, crash barriers, and the side walls of bridges (missing in the base).
+- Each wall has its real height to the nearest 25 cm, its real material (dry stone, cut limestone, plastered, bare block, concrete) and its real line from the aerial image. Openings for driveways and gates are where they really are.
+- Walls beside the road have colliders. A wall the car can drive through is a defect.
+- Away from the routes, terrace walls in the groves are placed from the aerial image wherever they can be seen from a route.
+- Walls are stored as lines with a height above ground and a material in `koura/overrides/walls.json`, never with an absolute height. Walls that touch the road edge are marked `recheck after heights`.
+
+**Other small things, same rule**
+
+Speed bumps, street lamps, electricity poles and their wires, transformers, water tanks, road signs and village name signs, shop awnings, billboards, bus shelters, bins, parked cars where cars are always parked, petrol pump canopies, olive presses, football pitches and their fences.
+
+**How it is checked**
+
+- Each route is divided into 250 m sections (50 m in the stage 1 cores). Each section has a row in the checklist with one column per group above: junctions, one-off objects, buildings, walls, other. A section is done when no column says `todo`.
+- For every section keep one pair: a video frame or photograph, and the render from the same position. Keep the pairs out of git.
+- Count and report in `PROGRESS.md` after each session: roundabouts and island junctions done of the total, one-off objects done of the total, buildings with a real facade of those facing routes, metres of wall built.
 
 ## Where the information comes from
 

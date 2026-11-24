@@ -23,6 +23,7 @@ The owner tests by driving and reports by voice, so names are spelled as heard. 
 | Build 8 | "Elevation change is critical... I have to feel like I'm driving on the road. It needs to be recognizable." |
 | Build 8, for you | "try to get the most detail visually possible... images of the homes to put them in, or structure around them, so the road actually feels like or reminds you of when you drive on it in real life, so you know the direction better rather than it being just regular models" |
 | Build 8, for you | "the dead parts of the map in the center where there is no terrain should be filled with grass and olive trees. Vegetation and walls must also be accurate... The scenery needs to feel very real." |
+| Build 9, for you | Focus on "a lot of small details like roundabouts, for example, statues, detailed buildings, etc., etc., and walls." |
 | Build 9 | "The map definitely feels a lot better." Long straights with a steady climb feel "very flat" (example: Aaba to Kfar Hazir), while short steep climbs feel right. The road there matches the height model, so this is road-height work and waits for the phone recording |
 
 Build 9 loads and drives (owner, 2026-11-24).
@@ -216,7 +217,7 @@ Why this order differs from the old one: stage 1 and stage 2 already build, so t
 From `DETAIL-STANDARD.md`, shortened to the five things the owner will check when driving:
 
 1. The road is smooth and the hills feel real (not yours, but do not break it). One thing here is yours: a steady climb on a long straight reads as flat when nothing beside the road shows the slope. Walls, terraces, poles and buildings stepping up the hill are what make a 2 % grade visible, so on long straights place them with care.
-2. At every junction the owner knows which village it is from the buildings.
+2. At every junction the owner knows which village it is from the buildings. Roundabouts are real roundabouts with their islands and statues; buildings have their floors, balconies and shop signs; every wall beside the road is there (`DETAIL-STANDARD.md` section 5).
 3. Turning the camera full circle anywhere on a route shows land, trees and buildings, never the edge of the world.
 4. Olive groves, walls and terraces are where they really are.
 5. The kart track can be lapped and timed.

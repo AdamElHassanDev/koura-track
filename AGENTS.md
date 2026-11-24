@@ -21,3 +21,4 @@ Rules that hold for the whole project:
 - Road heights are reserved (`handoff/BASE.md` section 4): do not change how road heights or road smoothing are computed until `handoff/PROGRESS.md` has a row "Road-height reserve lifted". Plan-view road changes and everything beside the road are open.
 - Never store an absolute height. Every added object is placed by latitude and longitude and takes its height from the terrain at build time; heights above ground are fine.
 - The owner drives the map while work goes on (`handoff/BASE.md` section 5): one large build at a time, stop builds by process id only, never install while the game is running, never start the game unless the owner says it is free, `recordings/owner/` is read only.
+- Owner's addition of 2026-11-24 (`handoff/DETAIL-STANDARD.md` section 5): focus on small details. Real roundabouts and junction islands, statues and monuments, detailed buildings with signs, and walls, finished stretch by stretch.
