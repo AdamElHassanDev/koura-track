@@ -118,10 +118,18 @@ index 27deec8..62d5292 100644
                  continue
              # cara interior del pretil
 diff --git a/openlaps/export_ac.py b/openlaps/export_ac.py
-index 5e3853d..d183ceb 100644
+index 5e3853d..3afd34f 100644
 --- a/openlaps/export_ac.py
 +++ b/openlaps/export_ac.py
-@@ -370,7 +370,7 @@ def write_track(scene, out_dir, track_id, info, map_lines, route=None, log=print
+@@ -217,6 +217,7 @@ SURFACE_DEFS = [
+     # vado: el camino bajo un palmo de agua. Frena (DAMPING) y agarra poco; pista válida
+     ("MXVADO", 0.6, 0.35, "", 0, "NULL", 0, 1, 0.01, 0.8, 0, 0.2, 0.5),
+     ("MXROCA", 0.82, 0, "", 0, "NULL", 0.1, 0, 0.03, 1.2, 0, 0.5, 0.4),
++    ("KART", 1.0, 0, "", 0, "NULL", 0, 1, 0, 0, 0, 0, 0),
+ ]
+ # Tipo de superficie de CSP (grava, arena y pasto con su física y sus efectos) y ruido Perlin en vez del seno
+ # para los baches. Sin CSP estas líneas se ignoran y quedan la fricción y el seno de arriba.
+@@ -370,7 +371,7 @@ def write_track(scene, out_dir, track_id, info, map_lines, route=None, log=print
          os.remove(ruta_trafico)
      w(os.path.join("data", "lighting.ini"), "[LIGHTING]\nSUN_PITCH_ANGLE=45\nSUN_HEADING_ANGLE=-40\n")
      ext_txt = ext_config(scene, info["lat"], info["lon"])
@@ -716,10 +724,10 @@ index 0000000..6a3d1fb
 +    return {**osm, "ways": list(ways.values())} if counts["applied"] else osm
 diff --git a/openlaps/koura_scenery.py b/openlaps/koura_scenery.py
 new file mode 100644
-index 0000000..6ad6e57
+index 0000000..a2ce4b7
 --- /dev/null
 +++ b/openlaps/koura_scenery.py
-@@ -0,0 +1,466 @@
+@@ -0,0 +1,472 @@
 +"""Build surveyed Koura scenery from geographic coordinates and relative dimensions."""
 +
 +import json
@@ -883,9 +891,10 @@ index 0000000..6ad6e57
 +class _RoadSurface:
 +    """Read the finished road mesh within an island's bounds and sample it barycentrically."""
 +
-+    def __init__(self, scene):
++    def __init__(self, scene, surfaces=None):
 +        self.pieces = [piece for (group, _, phys), pieces in scene.pieces.items()
-+                       if group == "calzada" and phys for piece in pieces]
++                       if group == "calzada" and phys and (surfaces is None or phys in surfaces)
++                       for piece in pieces]
 +        boxes = [box(*piece.pos[:, :2].min(axis=0), *piece.pos[:, :2].max(axis=0)) for piece in self.pieces]
 +        self.index = shapely.STRtree(boxes)
 +
@@ -898,8 +907,13 @@ index 0000000..6ad6e57
 +            a, b = faces[:, :, :2].min(axis=1), faces[:, :, :2].max(axis=1)
 +            hit = ((a[:, 0] <= xmax) & (a[:, 1] <= ymax) & (b[:, 0] >= xmin) & (b[:, 1] >= ymin))
 +            nearby.append(faces[hit])
++        def ground_height(xy):
++            if terrain is None:
++                return np.full(len(xy), np.nan)
++            return terrain.height(*xy.T)
++
 +        if not nearby:
-+            return lambda xy: terrain.height(*xy.T)
++            return ground_height
 +        triangles = np.concatenate(nearby)
 +        a, b = triangles[:, 1] - triangles[:, 0], triangles[:, 2] - triangles[:, 0]
 +        det = a[:, 0] * b[:, 1] - a[:, 1] * b[:, 0]
@@ -909,7 +923,7 @@ index 0000000..6ad6e57
 +
 +        def height(xy):
 +            above, tri = tree.query(shapely.points(xy), predicate="intersects")
-+            ground = terrain.height(*xy.T)
++            ground = ground_height(xy)
 +            if not len(tri):
 +                return ground
 +            delta = xy[above] - origin[tri, :2]
@@ -1187,7 +1201,7 @@ index 0000000..6ad6e57
 +        log(f"  overrides {kind}: {applied} applied, {outside} outside/unmatched, {pending} pending, {invalid} invalid{length}")
 +    return exclusions
 diff --git a/openlaps/pipeline.py b/openlaps/pipeline.py
-index bd1fc54..38e5194 100644
+index bd1fc54..dd193c3 100644
 --- a/openlaps/pipeline.py
 +++ b/openlaps/pipeline.py
 @@ -5,6 +5,7 @@ import math
@@ -1274,13 +1288,26 @@ index bd1fc54..38e5194 100644
  
      # ------------------------------------------------------------ terreno
      log("5/7 Terreno: tallado y textura…")
-@@ -371,10 +398,16 @@ def run(args, log=print, proj=None, scene=None, osm_data=None, pedazo=None, cat_
+@@ -346,7 +373,8 @@ def run(args, log=print, proj=None, scene=None, osm_data=None, pedazo=None, cat_
+     if pedazo is not None:
+         terr.solo = pedazo
+     terr.zona = zona
+-    terr.build_mesh(scene, painter, tile_m=args.tesela, mpp=mpp, cobertura=cob)
++    fine_ground = getattr(args, "koura_fine_ground", {})
++    terr.build_mesh(scene, painter, tile_m=args.tesela, mpp=mpp, cobertura=cob, **fine_ground)
+     plazas_peatonales(scene, plazas, terr, rd["road_polys"], blds_poly, log=log)
+     agua.construir(scene)
+ 
+@@ -371,10 +399,19 @@ def run(args, log=print, proj=None, scene=None, osm_data=None, pedazo=None, cat_
      log(f"  detalles: orillas en {ne} tramos, desgaste en {nw}, {nl} arbotantes, señales: "
          + ", ".join(f"{k} {v}" for k, v in sg.items()))
      excl = [rd["road_union"].buffer(2.0)] if rd["road_union"] is not None else []
 +    if overrides is not None:
 +        from . import koura_scenery
 +        excl.extend(koura_scenery.build(scene, proj, terr, rect, zona, overrides, log=log))
++    kart_scenery = getattr(args, "koura_kart_scenery", None)
++    if kart_scenery is not None:
++        kart_scenery(scene, proj, terr, log=log)
      if rd["sidewalks"] is not None:
          excl.append(rd["sidewalks"].buffer(0.5))
      if blds_poly is not None:
@@ -1291,7 +1318,7 @@ index bd1fc54..38e5194 100644
      if water_poly is not None:
          excl.append(water_poly)
      if rd.get("tunnel_poly") is not None:      # ni árboles sobre la tapa del túnel ni en sus bocas
-@@ -390,6 +423,8 @@ def run(args, log=print, proj=None, scene=None, osm_data=None, pedazo=None, cat_
+@@ -390,6 +427,8 @@ def run(args, log=print, proj=None, scene=None, osm_data=None, pedazo=None, cat_
          x, y = proj.to_local([n["lon"] for n in trees], [n["lat"] for n in trees])
          osm_trees = np.column_stack([x, y])
          inside = (x > proj.xmin) & (x < proj.xmax) & (y > proj.ymin) & (y < proj.ymax)
@@ -1300,7 +1327,19 @@ index bd1fc54..38e5194 100644
          osm_trees = osm_trees[inside]
      trunks = V.build(scene, terr, lc, proj, exclude, osm_trees, density=args.vegetacion,
                       road_pts=rd["carve"][:, :2] if len(rd["carve"]) else None, chm=chm, log=log)
-@@ -438,8 +473,7 @@ def run(args, log=print, proj=None, scene=None, osm_data=None, pedazo=None, cat_
+@@ -420,6 +459,11 @@ def run(args, log=print, proj=None, scene=None, osm_data=None, pedazo=None, cat_
+     log("7/7 Exportando…")
+     os.makedirs(args.salida, exist_ok=True)
+     name = args.nombre
++    custom_layout = getattr(args, "koura_layout", None)
++    if custom_layout is not None:
++        prepare_layout, write_layout = custom_layout
++        layout = prepare_layout(scene, proj, terr)
++        route = layout.route
+     mallas = scene.meshes()          # las mismas para el resumen y el .glb (armarlas cuesta ~1 s)
+     st = scene.stats(mallas)
+     log(f"  escena: {st['mallas']} mallas, {st['vertices']:,} vértices, {st['triangulos']:,} triángulos, "
+@@ -438,8 +482,7 @@ def run(args, log=print, proj=None, scene=None, osm_data=None, pedazo=None, cat_
      log(f"  {glb} ({size / 1e6:.1f} MB)")
      if args.ac:
          # el muro invisible de borde queda en el .glb, pero en AC estorbaría si el usuario activa el modo en vivo
@@ -1310,7 +1349,7 @@ index bd1fc54..38e5194 100644
          thumb = prev.copy()
          thumb.thumbnail((512, 512))
          bio = io.BytesIO()
-@@ -452,7 +486,7 @@ def run(args, log=print, proj=None, scene=None, osm_data=None, pedazo=None, cat_
+@@ -452,7 +495,7 @@ def run(args, log=print, proj=None, scene=None, osm_data=None, pedazo=None, cat_
                      s2_years=f" ({', '.join(sorted(rasters.S2_YEARS))})" if rasters.S2_YEARS else "") + "".join("- " + a + chr(10) for a in R.attribution),
                  "description": f"Generada con openlaps a partir de datos abiertos. {area_km2:.2f} km².",
                  "tags": [t for t in (R.code, R.sub, "openlaps", args.modo) if t], "length": length or rd["stats"]["km"] * 1000, "run": info_run,
@@ -1319,7 +1358,20 @@ index bd1fc54..38e5194 100644
                  "ai_hw": route_hw, "width": int(round(float(np.median(route_hw)) * 2)) if route_hw is not None else "",
                  "closed": args.modo == "circuito", "notas": notas_ruta,
                  "rect": [float(proj.xmin), float(proj.ymin), float(proj.xmax), float(proj.ymax)],
-@@ -807,6 +841,42 @@ def _place_stage(scene, net, route, route_hw, legs, closed, log=print):
+@@ -463,7 +506,11 @@ def run(args, log=print, proj=None, scene=None, osm_data=None, pedazo=None, cat_
+                              "dem": getattr(args, "dem", None),
+                              "tuneles": getattr(args, "tuneles", "principales")}}
+         info["trafico"] = datos_trafico
+-        export_ac.write_track(scene, os.path.join(args.salida, "assetto_corsa"), name, info, map_lines, route, log=log)
++        ac_output = os.path.join(args.salida, "assetto_corsa")
++        if custom_layout is not None:
++            write_layout(scene, ac_output, layout, info, log=log)
++        else:
++            export_ac.write_track(scene, ac_output, name, info, map_lines, route, log=log)
+     with open(os.path.join(args.salida, f"{name}.json"), "w", encoding="utf-8") as f:
+         json.dump({"area_km2": area_km2, "stats": st, "carreteras": rd["stats"], "cobertura": cob.stats,
+                    "segundos": round(time.time() - t0, 1),
+@@ -807,6 +854,42 @@ def _place_stage(scene, net, route, route_hw, legs, closed, log=print):
      log(f"  salida, meta y {closed_n} calles laterales cerradas con vallas")
  
  
@@ -1398,7 +1450,7 @@ index 8aba20d..64c3e4d 100644
          return EU
      return GENERIC
 diff --git a/openlaps/roads.py b/openlaps/roads.py
-index cc51fa9..41f5d4c 100644
+index cc51fa9..eaca233 100644
 --- a/openlaps/roads.py
 +++ b/openlaps/roads.py
 @@ -19,6 +19,7 @@ Pasos del algoritmo (ver README para la explicación larga):
@@ -1900,7 +1952,7 @@ index cc51fa9..41f5d4c 100644
  def _superficie_comun(scene, piezas, extra, en_estructura, celda, banda, sigma, cuenta):
      """Un nivel del repaso (ver armonizar_calzadas): ajusta `piezas` (y `extra`, que solo opina y se mueve donde
      va a ras de las demás) a una superficie común. Devuelve los campos para lo que va pegado a la calzada."""
-@@ -1798,6 +2094,87 @@ def _agrupar_cruces(net, solape_min=0.5):
+@@ -1798,6 +2094,108 @@ def _agrupar_cruces(net, solape_min=0.5):
      return out, cascos
  
  
@@ -1914,13 +1966,20 @@ index cc51fa9..41f5d4c 100644
 +    if not KART:
 +        return
 +    poly = KART["poly"]
-+    partes = [g for g in iter_polys(poly) if g.area > 1.0]
-+    vs, fs, off = [], [], 0
-+    for g in partes:
-+        v_, f_ = triangulate_polygon(g, 2.0)
-+        v_, f_ = _refinar_interior(v_, f_, 3.0)
-+        vs.append(v_); fs.append(f_ + off); off += len(v_)
-+    verts, faces = np.vstack(vs), np.vstack(fs)
++    surfaces = KART.get("surfaces", ((poly, "asfalto_cruce", "ROAD"),))
++    parts = []
++    for geometry, material, physics in surfaces:
++        points, triangles, offset = [], [], 0
++        for component in iter_polys(geometry):
++            if component.area <= 1.0:
++                continue
++            xy, faces = triangulate_polygon(component, 2.0)
++            xy, faces = _refinar_interior(xy, faces, 3.0)
++            points.append(xy)
++            triangles.append(faces + offset)
++            offset += len(xy)
++        if points:
++            parts.append((np.vstack(points), np.vstack(triangles), material, physics))
 +    bx0, by0, bx1, by1 = poly.bounds
 +    gx, gy = np.meshgrid(np.arange(bx0, bx1, 1.0), np.arange(by0, by1, 1.0))
 +    gx, gy = gx.ravel(), gy.ravel()
@@ -1934,8 +1993,22 @@ index cc51fa9..41f5d4c 100644
 +    if pend > tope:                                    # only shows the hillside around it
 +        coef[1:] *= tope / pend
 +    plano = lambda xy: coef[0] + coef[1] * (xy[:, 0] - cx) + coef[2] * (xy[:, 1] - cy)
-+    pos = np.column_stack([verts, plano(verts)])
-+    _add_marcado(scene, "relleno", "calzada", "asfalto_cruce", pos, verts / 14.0, faces, "ROAD")
++    if "surfaces" in KART and "kart_asphalt" not in scene.materials:
++        from PIL import Image, ImageOps
++        from .textures import png
++
++        key = "kart_asphalt.png"
++        base = scene.images.get("asfalto_cruce.png", Image.new("L", (32, 32), 128))
++        image = ImageOps.colorize(base.convert("L"), "#7d736b", "#cfbfb1").convert("RGB")
++        scene.images[key] = image
++        scene.textures[key] = png(image)
++        scene.material("kart_asphalt", key, specular=0.08, ambient=0.42, diffuse=0.56)
++    surfaces_xyz = []
++    for xy, faces, material, physics in parts:
++        pos = np.column_stack([xy, plano(xy)])
++        _add_marcado(scene, "relleno", "calzada", material, pos, xy / 14.0, faces, physics)
++        surfaces_xyz.append(pos)
++    pos = np.vstack(surfaces_xyz)
 +    best = min((e for e in net.edges if e.P is not None),
 +               key=lambda e: float(np.min(np.hypot(e.P[:, 0] - cx, e.P[:, 1] - cy))))
 +    road_polys.append((poly, best))
@@ -1988,7 +2061,7 @@ index cc51fa9..41f5d4c 100644
  def _altura_cruce(inc, centros):
      """Función (xy Nx2) -> z de la superficie de un cruce.
  
-@@ -2079,6 +2456,8 @@ def build_roads(net: RoadNetwork, scene, buildings_poly=None, water_poly=None, u
+@@ -2079,6 +2477,8 @@ def build_roads(net: RoadNetwork, scene, buildings_poly=None, water_poly=None, u
              verts, faces = np.vstack(vs), np.vstack(fs)
          if len(faces) == 0:
              continue
@@ -1997,7 +2070,7 @@ index cc51fa9..41f5d4c 100644
          # altura: mezcla de los planos de cada calle que llega (ver _altura_cruce)
          zf = _altura_cruce(inc, centros)
          z = zf(verts)
-@@ -2131,12 +2510,59 @@ def build_roads(net: RoadNetwork, scene, buildings_poly=None, water_poly=None, u
+@@ -2131,12 +2531,59 @@ def build_roads(net: RoadNetwork, scene, buildings_poly=None, water_poly=None, u
          # solo el contorno del cruce (los vértices de earcut están todos en el contorno)
          surf_pts.append(pos)
  
@@ -2088,7 +2161,7 @@ index 74fffd9..8fb1d3c 100644
 +                areas.append({"id": el["id"], "type": t, "tags": tags, "outer": ring, "inners": inner_rings})
      return {"ways": ways, "areas": areas, "nodes": nodes, "barriers": barriers, "power": power, "coast": coast, "rails": rails}
 diff --git a/openlaps/sources/rasters.py b/openlaps/sources/rasters.py
-index e65f7e9..5ab229c 100644
+index e65f7e9..92aaaa3 100644
 --- a/openlaps/sources/rasters.py
 +++ b/openlaps/sources/rasters.py
 @@ -6,6 +6,7 @@
@@ -2099,7 +2172,7 @@ index e65f7e9..5ab229c 100644
  import functools
  import json
  import math
-@@ -402,11 +403,119 @@ ORTHO_ARCGIS = {
+@@ -402,11 +403,121 @@ ORTHO_ARCGIS = {
  }
  
  
@@ -2113,9 +2186,11 @@ index e65f7e9..5ab229c 100644
 +    """Aerial imagery from XYZ tiles, decoded on demand (one array for a 12 km rectangle would not fit in memory).
 +    Same `sample` interface as Raster. Tiles are cached on disk under CACHE_DIR/xyz/<source>/z/x/y.jpg."""
 +
-+    def __init__(self, source, log=print, cache_tiles=400):
++    def __init__(self, source, log=print, cache_tiles=400, zoom=None):
 +        from collections import OrderedDict
 +        self.url, self.z = XYZ_SOURCES[source]
++        if zoom is not None:
++            self.z = zoom
 +        self.source = source
 +        self.log = log
 +        self.n = 2 ** self.z
@@ -2219,6 +2294,76 @@ index e65f7e9..5ab229c 100644
      from PIL import Image
      import rasterio.transform
      from .cache import fetch
+diff --git a/openlaps/terrain.py b/openlaps/terrain.py
+index 91c778b..ad78b1b 100644
+--- a/openlaps/terrain.py
++++ b/openlaps/terrain.py
+@@ -404,12 +404,14 @@ class Terrain:
+         return n / np.linalg.norm(n, axis=2, keepdims=True)
+ 
+     # ------------------------------------------------------------------ teselas
+-    def build_mesh(self, scene, painter, tile_m=128.0, mpp=0.5, cobertura=None):
++    def build_mesh(self, scene, painter, tile_m=128.0, mpp=0.5, cobertura=None,
++                   fine_boxes=(), fine_mpp=0.25, fine_ortho=None):
+         N = self.normals()
+         p = self.proj
+         nx, ny = len(self.gx), len(self.gy)
+         step = int(round(tile_m / self.res))
+         ti = 0
++        fine_tiles = 0
+         self.tiles = []
+         for j0 in range(0, ny - 1, step):
+             for i0 in range(0, nx - 1, step):
+@@ -440,7 +442,13 @@ class Terrain:
+                 faces = faces[~quita]
+                 name = f"terreno_{ti:03d}"
+                 tex = f"{name}.png"
+-                img = painter.paint_tile(x0, y0, x1, y1, mpp, self)
++                sharp = any(x0 < east and x1 > west and y0 < north and y1 > south
++                            for west, south, east, north in fine_boxes)
++                if sharp:
++                    img = painter.paint_tile(x0, y0, x1, y1, fine_mpp, self, fine_ortho=fine_ortho)
++                    fine_tiles += 1
++                else:
++                    img = painter.paint_tile(x0, y0, x1, y1, mpp, self)
+                 self.tiles.append((x0, y0, x1, y1, img))
+                 scene.textures[tex] = png(img)
+                 scene.images[tex] = img
+@@ -475,6 +483,8 @@ class Terrain:
+                         scene.add("terreno", name, q, quv, ff, phys="GRASS")
+                 ti += 1
+         self.log(f"  terreno: {ti} teselas de {tile_m:.0f} m con textura horneada a {mpp} m/px")
++        if fine_tiles:
++            self.log(f"  terreno fino: {fine_tiles} teselas con textura a {fine_mpp} m/px")
+ 
+ 
+ CUNETA_ANCHO = 1.6        # m desde la orilla de la calzada hasta donde la cuneta vuelve al terreno
+@@ -583,7 +593,7 @@ class GroundPainter:
+         self.buildings = buildings_poly
+         self.water = water_poly
+ 
+-    def paint_tile(self, x0, y0, x1, y1, mpp, terrain):
++    def paint_tile(self, x0, y0, x1, y1, mpp, terrain, fine_ortho=None):
+         W = int(round((x1 - x0) / mpp))
+         H = int(round((y1 - y0) / mpp))
+         px = x0 + (np.arange(W) + 0.5) * mpp
+@@ -613,10 +623,14 @@ class GroundPainter:
+         col = col * (1 - patch * 0.6) + dirt * patch * 0.6
+         # imagen Sentinel-2 (10 m) como base: da los colores y manchas reales del lugar;
+         # lo procedural solo aporta el grano fino que el satélite no ve
+-        if self.ortho is not None:
++        if self.ortho is not None or fine_ortho is not None:
+             # ortofoto de 20-25 cm: es la base; el ruido solo aporta grano
+-            ph = self.ortho.sample(self.proj, PX, PY, order=1)
++            source = fine_ortho if fine_ortho is not None else self.ortho
++            ph = source.sample(self.proj, PX, PY, order=1)
+             ok = ph.sum(-1) > 15
++            if fine_ortho is not None and self.ortho is not None and not ok.all():
++                ph[~ok] = self.ortho.sample(self.proj, PX[~ok], PY[~ok], order=1)
++                ok = ph.sum(-1) > 15
+             ph = ph * (0.94 + 0.12 * n2)[..., None]
+             col = np.where(ok[..., None], ph * 0.94 + col * 0.06, col)
+         elif self.s2 is not None:
 diff --git a/openlaps/vegetation.py b/openlaps/vegetation.py
 index 665c867..43810f0 100644
 --- a/openlaps/vegetation.py

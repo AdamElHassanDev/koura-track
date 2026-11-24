@@ -4,7 +4,8 @@ calls the fork's pipeline.  Usage (from the project root):
     (ulimit -v 21000000; .venv/bin/python koura/build.py S1)        # or S2
 
 Options: --res N (terrain grid, default from zone.json), --buf M (override route buffer), --name ID,
---no-imagery, --no-canopy, --overrides DIR, --out DIR.
+--no-imagery, --no-canopy, --overrides DIR, --out DIR, --fine-kart-imagery.
+Kart site: --kart-survey PATH, --kart-layout (requires surveyed timing and pit positions).
 """
 import sys, os, json, math, time, subprocess
 from pathlib import Path
@@ -19,6 +20,7 @@ from openlaps.__main__ import parser
 from openlaps.geo import BBox, LocalProjection
 from openlaps.sources import osm as OSM, rasters
 import kart_pts
+from kart_geometry import read_layout
 from stages import stage_zone
 from verify_network import record_network
 from openlaps import roads as _roads
@@ -29,7 +31,8 @@ def opt(name, default=None):
 STAGE = sys.argv[1] if len(sys.argv) > 1 and not sys.argv[1].startswith("-") else "S1"
 RES = opt("--res", str(ZONE["stages"][STAGE].get("terrain_res_m", 4)))
 BUF = float(opt("--buf", 0)) or None
-NAME = opt("--name", "koura")
+TIMED_KART = "--kart-layout" in sys.argv
+NAME = opt("--name", "koura_karting_mania" if TIMED_KART else "koura")
 OUT = str(Path(opt("--out", Path(ROOT, "out", STAGE))).resolve())
 log = lambda *a: print(*a, flush=True)
 
@@ -238,6 +241,38 @@ args = parser().parse_args(argv)
 args.koura_overrides = Path(opt("--overrides", Path(ROOT, "koura", "overrides"))).resolve()
 if "--overrides" in sys.argv and not args.koura_overrides.is_dir():
     raise SystemExit(f"Override directory does not exist: {args.koura_overrides}")
+if (TIMED_KART or "--fine-kart-imagery" in sys.argv) and not args.sin_orto:
+    fine = ZONE["fine_boxes"]["karting_mania"]
+    sw = proj.to_local(fine["west"], fine["south"])
+    ne = proj.to_local(fine["east"], fine["north"])
+    args.koura_fine_ground = {
+        "fine_boxes": [(*sw, *ne)],
+        "fine_ortho": rasters.XYZRaster("lb_xyz", log=log, zoom=19),
+    }
+kart_path = Path(opt("--kart-survey", args.koura_overrides / "karting_mania.json"))
+kart_data = None
+if kart_path.is_file():
+    kart_data, kart = read_layout(kart_path, proj)
+elif TIMED_KART or "--kart-survey" in sys.argv:
+    raise SystemExit(f"Karting Mania survey file does not exist: {kart_path}")
+
+if TIMED_KART:
+    from kart_layout import TRACK_ID, prepare_layout, write_layout
+    from openlaps.koura_scenery import _RoadSurface
+
+    if STAGE != "K" or NAME != TRACK_ID:
+        raise SystemExit(f"--kart-layout requires stage K and track ID {TRACK_ID}")
+    required = ("direction", "start_line", "grid", "pit_lane", "pit_boxes", "hotlap_start")
+    missing = [field for field in required if not kart_data.get(field)]
+    if missing:
+        raise SystemExit(f"Karting Mania timing survey is missing: {', '.join(missing)}")
+
+    def prepare_kart(scene, active_proj, terrain):
+        surface = _RoadSurface(scene, {"KART", "PITLANE"}).sampler(kart["poly"], None)
+        return prepare_layout(scene, active_proj, kart_data, surface, lambda xy: terrain.height(*xy.T))
+
+    args.koura_layout = (prepare_kart, write_layout)
+    args.sin_trafico = True
 args.zona_fn = lambda p: zona
 sp = [s for s in ZONE["spawn_points"] if zona.contains(Point(*[float(v) for v in proj.to_local(s["lon"], s["lat"])]))]
 args.spawns = [tuple(float(v) for v in proj.to_local(s["lon"], s["lat"])) for s in sp]
@@ -249,10 +284,19 @@ from openlaps import config as _C
 _C.CURB_HEIGHT = 0.05      # owner: kerbs were too high and broke the car; low enough to ride over
 _C.SIDEWALK_CLASSES = set()  # owner: the grey paved strips at junctions looked like parking strips and the kerbs broke the car.
                              # Koura village roads have almost no pavements; WP12 adds real ones where they exist
-_kp, _kl = kart_polygon()
-if zona.contains(_kp.centroid):
-    _roads.KART = {"poly": _kp, "name": "Karting Mania"}
-    log(f"  Karting Mania: racing line {_kl:.0f} m, asphalt {_kp.area:.0f} m2")
+if kart_data is None:
+    polygon, length = kart_polygon()
+    kart = {"poly": polygon, "name": "Karting Mania", "length": length}
+if zona.covers(kart["poly"].centroid):
+    if kart_data is not None and not zona.covers(kart["poly"]):
+        raise SystemExit("The selected stage cuts through the surveyed Karting Mania site")
+    _roads.KART = kart
+    log(f"  Karting Mania: racing line {kart['length']:.1f} m, paved area {kart['poly'].area:.0f} m2")
+    if kart_data is not None and any(kart_data.get(key) for key in ("kerbs", "barriers", "poles", "markings")):
+        from functools import partial
+        from kart_scenery import build as build_kart_scenery
+
+        args.koura_kart_scenery = partial(build_kart_scenery, data=kart_data)
 t0 = time.time()
 with record_network(_roads, Path(OUT) / f"{NAME}.roads.json", sp):
     pipeline.run(args, proj=proj, osm_data=OSM.parse(raw))

@@ -44,12 +44,12 @@ State how each item was checked: static, render, probe, or owner drove it.
 | 2026-11-24 | WP8 OSM ids and override files | Gate passed on the Btouratij memorial junction test build. All five override files are wired up, and road edges carry the source way IDs. | Before/after renders, network sidecars, fork tests and **in-game probe**. Details below. |
 | | WP9 Footage and recordings | Online videos listed, not downloaded or watched | |
 | | WP10 Stage 3 and detail passes | Not started | |
-| | WP11 Karting Mania kart track | Traced (`koura/kart_pts.py`, about 1.5 m accuracy) and built as one surface on one plane. Not done: walls, kerbs, colour, pit building, timing, own layout, real slope | |
+| 2026-11-24 | WP11 Karting Mania kart track | Survey preview built with a variable-width 811 m trace, sourced kerb and paddock barriers. Timing and exactness gate blocked. | Static, source comparison, 12-position render sheet and **in-game probe** at 41 positions. Details below. |
 | | WP12 Btouratij and Nakhle fine-detail pass | Not started | |
 | | WP13 Detail pass outside the green box | Not started | |
 | | WP14 Ground inside the loop | Not started | |
 
-**Next package:** WP11. Order: `BASE.md` section 8.
+**Next package:** WP6. Order: `BASE.md` section 8.
 
 ## WP8 override gate
 
@@ -60,6 +60,22 @@ The W8 build added one surveyed non-circular island, two landmark entries (memor
 Evidence is local in `out/wp8/compare-{approach,village-turn,aerial,oliva}.jpg`, `out/W8/gate-check/build.log`, `out/W8/gate-check/verify.json`, and `out/wp8/ingame/report.json`. W8 took 24 s and peaked at 1.08 GiB RSS (unmodified W8, 27 s and 1.20 GiB). Fork tests: 142 passed, 1 skipped. Static W8: ten passes, one expected failure, three failures (surface, traffic and clipped network), two unavailable (imagery counter and boundary-only group), four not applicable. The in-game probe passed all three positions, with all wheels on `ROAD`, all raycasts hitting, maximum 1.03 m displacement, and 476 minimum / 517 median FPS on this small test. The game closed and `race.ini` was restored byte-for-byte.
 
 The verified scenery and building edits are retained locally in `koura/overrides/private/`. This set contains no gate-only deletions or road operations. The S2 build with that set is checked separately against Build 9 before replacing the preview. The owner also confirmed whole-map detail including real signs, and in-game night-lighting acceptance under WP10.
+
+### Stage 2 regression after WP8
+
+The private scenery-only W8 edits rebuilt in S2 in 982 s at 13.26 GiB peak RSS with zero swap. All 455 exported road primitives retained byte-identical positions and indices. Every slope class matched Build 9 and loop climb remained 417 m. VERIFY reported 11 passes, one expected failure, six failures (surface, slope slivers, traffic, route continuity, scale and rural connectivity) and two unavailable (imagery counter and separate physical edge group). Every named route had continuous geometric coverage at the verifier's 8 m sampling interval. The routed graph passed shortcut and kart access only and retained 38 clipped disconnected components. See `out/WP8_S2/verify.json`, `road-mesh-comparison.json` and `verification-summary.log`. Build 9 remains installed.
+
+## WP11 Karting Mania survey preview
+
+The dated aerials support an 811.38 m UTM centreline (811.00 m from imagery scale) at 406 intervals of approximately 2 m, with measured widths from 5.43 to 12.42 m. The zoom 19 independent trace measured 810.20 m. Fifteen manually picked visible-edge controls matched within 0.493 m. Cross-zoom edge displacement was about 0.20 m at p95, with differences up to 1.90 m where shadows and shared pavement obscure the edge. The circuit's historical advertised length and the opening overhead are documented with sources in [the survey notes](../koura/overrides/karting_mania_notes.md). Lap footage did not establish distance against real speed.
+
+The isolated K build used the traced annulus, paved apron, fine imagery, a surveyed 8.29 m kerb and two observed paddock divider runs. The ENTR2 driveway ends 2.89 m short of the surveyed asphalt. Local renders `out/kart/kart-built-aerial.jpg`, `kart-source-aerial.jpg` and `kart-built-lap-contact.jpg` show the geometry and the still-generic buildings. Detailed venue signs, terrace, poles, fences and the remaining kerbs have their evidence and status in [the item checklist](../koura/overrides/karting_mania_items.csv). The trial took 47 s and peaked at 1.48 GiB RSS with zero swap. Static `out/K/survey-check/verify.json` has nine passes, one expected failure, two failures, four unavailable and four not applicable. The circuit-surface scan found zero step sites, two seam sites and four hole sites (`out/kart/kart-surface.json`).
+
+The in-game CSP 0.2.11 probe completed in 77 s. All 41 positions spaced 20 m apart had all four wheels on `KART` and a successful downward raycast. Maximum placement drift was 1.03 m. Minimum and median frame rates were 399 and 433 FPS on the isolated site. The game closed and the restored `race.ini` matched its pre-launch hash. See `out/kart/ingame/report.json`, logs and screenshots. The survey file is retained privately and selected explicitly for this test. The K layout preflight correctly stopped on six missing surveyed fields. Synthetic writer tests exercised timing outputs. An actual timed lap and a deliberate cut remain unverified.
+
+## Blocked
+
+- **WP11.** The surveyed layout requires current start-line endpoints, operating direction, grid, pit paths and stalls, and hotlap position before the timed layout can be tested. Additional close overhead or geolocated ground views are needed for obscured asphalt edges and the remaining detailed items in the checklist. Two seam sites and four hole sites require cleanup, and the access driveway must connect to the paved site. The track remains a private trial until those exactness, access and timing checks pass.
 
 ## For the road-height work
 

@@ -108,12 +108,14 @@ def grouped(hits):
     return groups
 
 
-def measure(glb):
+def measure(glb, mesh_prefix=None):
     meshes = load_glb(glb)[0]
     roads = []
     solid = []
     for mesh in meshes:
         name = mesh["name"]
+        if mesh_prefix is not None and not name.startswith(mesh_prefix):
+            continue
         if not name.startswith("1") or name.startswith(("1WALL", "1GRASS")):
             continue
         triangles = mesh["pos"][mesh["idx"]]
@@ -151,4 +153,6 @@ def measure(glb):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("glb")
-    print(json.dumps(measure(parser.parse_args().glb), indent=2))
+    parser.add_argument("--mesh-prefix", help="Restrict checks to a specific surface mesh group")
+    args = parser.parse_args()
+    print(json.dumps(measure(args.glb, args.mesh_prefix), indent=2))

@@ -37,7 +37,7 @@ Status of each work package from [`handoff/WORK-PACKAGES.md`](handoff/WORK-PACKA
 |---|---|---|
 | ✅ | WP8 Map-data ids and override files | All five override files passed the Btouratij memorial test, including a signed storefront and collidable scenery. |
 | ⬜ | WP9 Footage and recent places | Knots, Clutch N' Carb and others listed in `handoff/inputs/recent_places.json`. |
-| 🟡 | WP11 Karting Mania | Surface and shape done. Tyre walls, kerbs, concrete colour, pit building, timing and real slope not done. |
+| 🟡 | WP11 Karting Mania | Survey preview traced and tested in game. Exact current timing marks, pits, access and remaining trackside details are open. |
 | ⬜ | WP12 Btouratij and Nakhle fine detail | |
 | ⬜ | WP13 Detail outside the stage 1 box | |
 | ⬜ | WP14 Ground inside the loop | The middle of the loop is empty today. Fill with ground, grass and olive groves. |

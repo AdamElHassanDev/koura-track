@@ -20,7 +20,7 @@ def read_lines(path):
     return path.read_text(errors="replace").replace("\x00", "").splitlines()
 
 
-def report(track, directory, surfaces_ini, minimum_fps=60):
+def report(track, directory, surfaces_ini, minimum_fps=60, expected_surfaces=ROAD_SURFACES):
     logs = read_lines(directory / "log.txt")
     csp = read_lines(directory / "custom_shaders_patch.log")
     marker = f"Creating physics track: {track}"
@@ -50,7 +50,7 @@ def report(track, directory, surfaces_ini, minimum_fps=60):
             "i": row["i"], "drift_m": drift, "wheel_gaps_m": gaps, "surface_keys": keys,
             "lands": drift <= 3, "wheels": len(gaps) == 4 and all(-0.5 <= gap <= 1 for gap in gaps),
             "collision": row["raycast_m"] >= 0,
-            "road_surface": len(keys) == 4 and all(key in ROAD_SURFACES for key in keys),
+            "road_surface": len(keys) == 4 and all(key in expected_surfaces for key in keys),
         })
     checks = {
         "track_loaded": track_loaded and any(line.strip() == "STARTING PHYSICS ENGINE" for line in logs),
@@ -76,12 +76,14 @@ def main():
     parser.add_argument("directory", type=Path)
     parser.add_argument("--layout")
     parser.add_argument("--minimum-fps", type=float, default=60)
+    parser.add_argument("--surface", action="append", help="Required surface key (can be repeated)")
     args = parser.parse_args()
     root, _, _ = game_paths()
     folder = root / "content" / "tracks" / args.track
     if args.layout:
         folder /= args.layout
-    result = report(args.track, args.directory, folder / "data" / "surfaces.ini", args.minimum_fps)
+    result = report(args.track, args.directory, folder / "data" / "surfaces.ini", args.minimum_fps,
+                    set(args.surface) if args.surface else ROAD_SURFACES)
     (args.directory / "report.json").write_text(json.dumps(result, indent=2) + "\n")
     print(json.dumps(result, indent=2))
     raise SystemExit(0 if result["pass"] else 1)
