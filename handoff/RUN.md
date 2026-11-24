@@ -45,7 +45,7 @@ History, do not execute: an earlier quick preview was made with `evidence/previe
 
 The order is the table in `BASE.md` section 8:
 
-WP0 (finish), WP8, WP6, WP14, WP9, WP12, WP11, WP13, then WP2, WP3, WP4, WP5, WP7 (finish each), then WP10. WP1 only in a session where the owner says the game is free.
+WP0 (finish), WP8, WP11, WP6, WP14, WP9, WP12, WP13, then WP2, WP3, WP4, WP5, WP7 (finish each), then WP10. WP1 only in a session where the owner says the game is free.
 
 `PROGRESS.md` has a line `Next package:`. Do that one. When you finish it, change the line to the next in the order.
 

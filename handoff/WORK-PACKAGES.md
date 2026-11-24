@@ -389,6 +389,12 @@ Only after stage 2 is accepted. In priority order. Item 1 is replaced by WP14 (t
 
 ## WP11. Karting Mania, Kousba: the kart track in full detail
 
+**Owner, 2026-11-24, after driving build 9:** "have [the agent] focus on the details of the carting track as well, because it needs to be super accurate. Right now, not so much." An earlier verdict on the first version was "an absolute joke". Treat every item in step 11 as required, not as polish.
+
+**What the base has, and why it is not accurate enough.** `koura/kart_pts.py` holds a hand trace of 77 points, good to about 1.5 m, with one width (8 m) for the whole lap; `roads._pista_kart` lays it on a single plane with the slope capped at 2.5 % (the height model says 6 %; the real slope is unknown). There are no kerbs, tyre walls, fences, painted lines, start line, pit lane, buildings or timing. Step 2 below (trace to 0.5 m with the real width at every point) replaces the hand trace; do not keep the 77 points as the final shape. The single plane may stay only if the onboard videos show the site is that flat; `_pista_kart`'s plan shape and surface are yours to change, its height is reserved only until the reserve is lifted, so record the slopes you see in the videos under `For the road-height work` in `PROGRESS.md`.
+
+**Accuracy targets, all measured and reported:** asphalt edge within 0.5 m of the aerial image all the way round; width at every 2 m from the image, not one value; lap length measured and compared with onboard lap videos (count seconds between landmarks against the trace); every corner's inside and outside kerb present where the videos show one; start line, grid and pit lane where the videos show them; direction of travel from the videos.
+
 Read `DETAIL-STANDARD.md` first. It defines what counts as done.
 
 The owner asked for this track "with extreme details". It is not in OpenStreetMap at all, so nothing appears unless this package is done. Do it after WP8 (it uses the override files) and before the stage 2 build in WP7 is called finished.

@@ -24,6 +24,7 @@ The owner tests by driving and reports by voice, so names are spelled as heard. 
 | Build 8, for you | "try to get the most detail visually possible... images of the homes to put them in, or structure around them, so the road actually feels like or reminds you of when you drive on it in real life, so you know the direction better rather than it being just regular models" |
 | Build 8, for you | "the dead parts of the map in the center where there is no terrain should be filled with grass and olive trees. Vegetation and walls must also be accurate... The scenery needs to feel very real." |
 | Build 9, for you | Focus on "a lot of small details like roundabouts, for example, statues, detailed buildings, etc., etc., and walls." |
+| Build 9, for you | "focus on the details of the carting track as well, because it needs to be super accurate. Right now, not so much" |
 | Build 9 | "The map definitely feels a lot better." Long straights with a steady climb feel "very flat" (example: Aaba to Kfar Hazir), while short steep climbs feel right. The road there matches the height model, so this is road-height work and waits for the phone recording |
 
 Build 9 loads and drives (owner, 2026-11-24).
@@ -200,11 +201,11 @@ One work package per session, as `RUN.md` says. The order below replaces every o
 |---|---|---|---|
 | 1 | WP0 Setup and baseline | Environment, fork, OSM snapshot | `koura/verify_static.py`, baseline table with build 9 as the baseline, `pytest` run, snapshot extended to the stage 3 rectangle |
 | 2 | WP8 OSM ids and override files | Nothing | All of it. Every later package writes into these files |
-| 3 | WP6 Performance | Memory cap, coarser merge grid for large stages | All of the rest. Needed before the ground is enlarged |
-| 4 | WP14 Ground inside the loop | Nothing | All of it. New package, owner's request |
-| 5 | WP9 Footage and recent places | Videos listed | All of it, plus the owner's own video when it arrives (`DASHCAM.md`) |
-| 6 | WP12 Btouratij and Nakhle fine detail | Nothing | All of it. Longest package; the owner's first priority |
-| 7 | WP11 Karting Mania | Traced surface on one plane | Walls, kerbs, colour, pit building, timing, layout as its own circuit |
+| 3 | WP11 Karting Mania | Hand-traced surface on one plane, about 1.5 m accuracy | Everything else. The owner asked for it to be "super accurate" and it is not: re-trace to 0.5 m with real widths, kerbs, tyre walls, fences, lines, pit building, timing, own circuit layout |
+| 4 | WP6 Performance | Memory cap, coarser merge grid for large stages | All of the rest. Needed before the ground is enlarged |
+| 5 | WP14 Ground inside the loop | Nothing | All of it. New package, owner's request |
+| 6 | WP9 Footage and recent places | Videos listed | All of it, plus the owner's own video when it arrives (`DASHCAM.md`) |
+| 7 | WP12 Btouratij and Nakhle fine detail | Nothing | All of it. Longest package; the owner's first priority |
 | 8 | WP13 Detail outside the green box | Nothing | All of it |
 | 9 | WP2, WP3, WP4, WP5, WP7 | First versions in use (see `PROGRESS.md`) | Bring each to its gate, in that order, one per session |
 | 10 | WP10 remaining items | | Speed bumps, night lighting, traffic |
