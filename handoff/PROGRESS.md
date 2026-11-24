@@ -49,7 +49,13 @@ State how each item was checked: static, render, probe, or owner drove it.
 | | WP13 Detail pass outside the green box | Not started | |
 | 2026-11-24 | WP14 Ground inside the loop | Ground and grove pipeline built. Aaba gate passed for terrain with preserved roads. The full gate remains blocked. | Export geometry, full-circle and grove renders, and **in-game probe** on Aaba. Details below. |
 
-**Next package:** WP12, Btouratij interior, then Nakhle. Reopen WP11 with the owner’s videos before the outer-road detail pass.
+**Next package:** Verify and deliver the combined Stage 2 review, then finish the open WP12 Btouratij and Nakhle detail gates. Reopen the WP11 timed layout once its remaining controls are surveyed.
+
+## Combined Stage 2 review
+
+- The owner requested one map with the work combined before the current allowance ends. The full build started on 2026-11-24 at 13:29 local time in `out/combined-current/` as `koura_combined`, displayed as **Koura combined preview**. It snapshots the entire current private authoring set, includes the committed Kousba boundary repair and selects the previously probed 811.38 m surveyed free-roam kart circuit. The fine imagery flag covers both village cores and the kart site. The regular installed preview and the owner’s open session are kept available during compilation.
+- Captured inputs are in `out/combined-current/authoring-set/`. Build command and resource data are in `build.log`, user service `koura-combined-s2`. The local `verify.sh` runs the full Stage 2 static, grade and route climb checks and retests the Kousba lane coverage and boundary walls. Install and run the game probe only when the owner’s game and launcher are closed. Record the real outcome before calling this review ready to drive.
+- The Nakhle candidate adds the aerial-matched central mosque and its dome, minaret, street-facing porch and exterior steps from one confirmed published dusk photograph. One hall corner is inset against the existing road, with zero measured overlap and 0.19 m clearance in the isolated check. Its dedication and the street sign position remain open. The municipality directory pin falls in an orchard and the event photos show only the interior. Preserve the separate municipal survey and missing exterior on the filming list. See `out/WP12/nakhle-mosque-candidate/` and `out/WP12/nakhle-municipal-survey/`. [Nakhle exterior photograph](https://sawtennes.com/wp-content/uploads/2023/11/IMG-20231103-WA0063.jpg)
 
 ## WP9 Footage and storefronts
 
@@ -169,7 +175,7 @@ The aggregate survey and 417 m loop climb matched the Build 9 limits. A stricter
 
 ## Blocked
 
-- **WP11.** The surveyed layout requires current start-line endpoints, operating direction, grid, pit paths and stalls, and hotlap position before the timed layout can be tested. Additional close overhead or geolocated ground views are needed for obscured asphalt edges and the remaining detailed items in the checklist. Two seam sites and four hole sites require cleanup, and the access driveway must connect to the paved site. The track remains a private trial until those exactness, access and timing checks pass.
+- **WP11.** Both owner clips confirm anticlockwise laps and eastbound crossing of the paddock-side checker. One recorded lap took about 41.83 s. The historical checker centre is near survey station 164 at 34.326116, 35.852536 with at least 5 m along-track uncertainty. Its endpoints, electronic timing line, grid, pit paths, stalls and hotlap position remain unresolved. Private evidence and the exact filming requests are in `out/kart/owner-footage/track-match/`. Two seam sites, four holes and the short paddock access gap stay open in the exact-layout gate.
 - **WP14.** Connecting the additional roads in the existing solver alters protected road elevations. A future connector build needs separate joins that preserve the existing surface. The full-circle check also has unresolved pixels at 15 stations. The background terrain is an opt-in trial and the connector search is an audit while those gates are open.
 
 ## For the road-height work
