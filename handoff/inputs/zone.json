@@ -150,6 +150,11 @@
      "north": 34.3287,
      "east": 35.8553,
      "note": "Karting Mania site, see work package 11"
+        },
+        {
+          "type": "background",
+          "method": "loop_viewshed",
+          "note": "Coarse ground inside the loop and visible land, enabled by the WP14 trial flag"
     }
    ],
    "terrain_res_m": 3.0,
@@ -265,6 +270,11 @@
      "west": 35.833,
      "north": 34.356,
      "east": 35.8385
+        },
+        {
+          "type": "background",
+          "method": "loop_viewshed",
+          "note": "Isolated test for the detailed and background terrain seam"
     }
    ],
    "expected": {

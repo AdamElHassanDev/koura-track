@@ -7,6 +7,7 @@ Options: --res N (terrain grid, default from zone.json), --buf M (override route
 --no-imagery, --no-canopy, --overrides DIR, --out DIR, --fine-kart-imagery.
 Kart site: --kart-survey PATH, --kart-layout (requires surveyed timing and pit positions).
 Performance profile: --performance baseline|lod|horizon|atlas|full.
+Background ground trial: --background on stages with a background part.
 """
 import sys, os, json, math, time, subprocess
 from pathlib import Path
@@ -217,10 +218,10 @@ def kart_polygon():
     poly = unary_union([ring.buffer(kart_pts.TRACK_WIDTH_M / 2, join_style=1), Polygon(loc(kart_pts.PADDOCK))]).buffer(0)
     return poly, ring.length
 
-def prefetch_imagery():
+def prefetch_imagery(ground):
     """Download every zoom 18 tile under the zone (plus 150 m) in parallel, so the build only reads from disk."""
     r = rasters.XYZRaster("lb_xyz", log=log)
-    z = zona.buffer(150)
+    z = ground.buffer(150)
     x0, y0, x1, y1 = z.bounds
     lon, lat = proj.to_lonlat(np.array([x0, x1]), np.array([y0, y1]))
     px, py = r.tiles_for_lonlat(lon, lat)
@@ -250,6 +251,30 @@ args.koura_horizon_underlayer = perf_step >= 2
 args.koura_terrain_atlas = perf_step >= 3
 args.koura_material_library = perf_step < 4
 log(f"  performance profile: {performance}")
+if "--background" in sys.argv:
+    from background_roads import find_connectors
+    from measure_background import coverage, measure
+
+    background_part = next((part for part in ZONE["stages"][STAGE]["parts"]
+                            if part["type"] == "background"), None)
+    if background_part is None:
+        raise SystemExit(f"Stage {STAGE} has no background ground definition")
+
+    def measure_ground(active_proj, detailed, dem, osm_data, buildings, sea):
+        result = coverage(ZONE, active_proj, detailed, dem, stage=STAGE, sea=sea,
+                          max_outside_m=background_part.get("max_outside_m"))
+        report = measure(result, detailed, active_proj, osm_data, buildings)
+        evidence = Path(OUT, f"{NAME}.background.json")
+        evidence.parent.mkdir(parents=True, exist_ok=True)
+        evidence.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+        log(f"  fondo: {result.fill.area / 1e6:.2f} km² medidos desde {result.observer_count} puntos")
+        if not args.sin_orto and not result.fill.is_empty:
+            prefetch_imagery(result.fill)
+        return result
+
+    args.koura_background_coverage = measure_ground
+    args.koura_background_link_audit = find_connectors
+    args.koura_draw_distances = {"calzada": 1800, "edificios": 1500, "rayas": 1100}
 args.koura_overrides = Path(opt("--overrides", Path(ROOT, "koura", "overrides"))).resolve()
 if "--overrides" in sys.argv and not args.koura_overrides.is_dir():
     raise SystemExit(f"Override directory does not exist: {args.koura_overrides}")
@@ -290,7 +315,7 @@ sp = [s for s in ZONE["spawn_points"] if zona.contains(Point(*[float(v) for v in
 args.spawns = [tuple(float(v) for v in proj.to_local(s["lon"], s["lat"])) for s in sp]
 for i, s in enumerate(sp): log(f"slot {i}: {s['name']}")
 os.environ.setdefault("KOURA_CELDA", "0.5" if zona.area < 12e6 and (rect[2] - rect[0]) * (rect[3] - rect[1]) < 30e6 else "1.5")
-if "--no-imagery" not in sys.argv: prefetch_imagery()
+if "--no-imagery" not in sys.argv: prefetch_imagery(zona)
 raw = connect_crossings(inject_kart(fetch_osm()))
 from openlaps import config as _C
 _C.CURB_HEIGHT = 0.05      # owner: kerbs were too high and broke the car; low enough to ride over

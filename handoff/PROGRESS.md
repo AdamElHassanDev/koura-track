@@ -47,9 +47,9 @@ State how each item was checked: static, render, probe, or owner drove it.
 | 2026-11-24 | WP11 Karting Mania kart track | Survey preview built with a variable-width 811 m trace, sourced kerb and paddock barriers. Timing and exactness gate blocked. | Static, source comparison, 12-position render sheet and **in-game probe** at 41 positions. Details below. |
 | | WP12 Btouratij and Nakhle fine-detail pass | Not started | |
 | | WP13 Detail pass outside the green box | Not started | |
-| | WP14 Ground inside the loop | Not started | |
+| 2026-11-24 | WP14 Ground inside the loop | Ground and grove pipeline built. Aaba gate passed for terrain with preserved roads. The full gate remains blocked. | Export geometry, full-circle and grove renders, and **in-game probe** on Aaba. Details below. |
 
-**Next package:** WP14. Order: `BASE.md` section 8.
+**Next package:** WP9. Order: `BASE.md` section 8.
 
 ## WP8 override gate
 
@@ -89,11 +89,35 @@ The first S1 build ran alone under `/usr/bin/time -v`: 126.7 s, 8.52 GiB peak RS
 
 The draw-distance-only renders lost 28,320 and 37,881 ground pixels in the sampled views. The underlayer restored all pixels visible in the baseline at both positions. The final screenshots show uninterrupted terrain and no visible atlas seams from the tested viewpoints. All 74 in-game raycast distances matched the baseline exactly. Seventy-one hits within 25 cm of the expected detailed ground were 1.65 to 2.45 km from the active camera. The other tests included the two near controls and one surface hit above the expected height in both builds. All three driving positions passed wheel contact. The game closed and `race.ini` matched the original hash.
 
-VERIFY checks 6 and 10 passed (`out/WP6/full/verify.json`). Check 10 now uses the measured S1 p95 of 853 as the hard limit. The road geometry comparison found all 139 road primitives byte-identical. Triangle totals for each terrain physics surface were unchanged. Road-height and smoothing code, including `_superficie_comun` and the stage resolutions, remain under the reserve. The fork suite passed 142 tests with one skip. Evidence includes `out/WP6/{baseline,lod,horizon,atlas,full}/`, the two game views and `out/WP6/full/collision-geometry.json`. The Stage 2 regression build is running separately in `out/WP6/S2/`.
+VERIFY checks 6 and 10 passed (`out/WP6/full/verify.json`). Check 10 now uses the measured S1 p95 of 853 as the hard limit. The road geometry comparison found all 139 road primitives byte-identical. Triangle totals for each terrain physics surface were unchanged. Road-height and smoothing code, including `_superficie_comun` and the stage resolutions, remain under the reserve. The fork suite passed 142 tests with one skip. Evidence includes `out/WP6/{baseline,lod,horizon,atlas,full}/`, the two game views and `out/WP6/full/collision-geometry.json`.
+
+The separate Stage 2 rebuild finished in 1,016 s at 13.29 GiB peak RSS with zero swap. Its 8,992-mesh KN5 was 832 MB. All 455 road primitives and terrain physics triangle totals matched the previous S2. Slope results matched Build 9 and the loop climbed 417 m. Estimated draw calls were 632 median and 1,191 p95, still above the measured 853 limit. The CSP probe passed all 11 starting positions at 399 minimum and 430 median FPS with all road contacts and raycasts passing. The race configuration was restored byte-for-byte. The static report retained the previous surface, slope-sliver, traffic, route, length and connectivity failures. Build 9 remains installed. See `out/WP6/S2/verify.json`, `collision-geometry.json` and `ingame/report.json`.
+
+## WP14 Ground coverage
+
+The 30 m terrain assessment sampled 499 points 100 m apart over all seven named routes. From 1.2 m above the model, it checked unobstructed sightlines up to 3 km and clipped the result to the stage frame and surveyed shoreline. The cached measurement took 3.22 s at 318 MiB peak RSS with zero swap.
+
+| Ground in the Stage 2 frame | Area km² | Mapped drivable road km | Footprints |
+|---|---:|---:|---:|
+| Loop interior missing detailed ground | 15.68 | 46.80 | 1,504 |
+| Visible land | 71.33 | 384.07 | 11,189 |
+| Visible land outside detailed ground | 47.38 | 190.28 | 5,520 |
+| Selected fill after the 100 m visibility buffer and full interior | 66.07 | 278.22 | 7,362 |
+
+Road figures count OSM centrelines before choosing reconnecting routes. The trial uses a second terrain quality level in the same build. It shares every native edge sample with the original detailed tiles and extrudes coarse models from measured building footprints. The physical boundary follows the emitted terrain outline. The seam smoke verified 52 samples on an exported 252 m edge with zero gaps and steps. It also detected each injected 15 cm step and 20 cm gap. Full scene and in-game checks remain pending. See `out/WP14/measurements/` and `out/WP14/ground-smoke/`.
+
+The Aaba B trial finished in 84.8 s at 1.24 GiB peak RSS with zero swap. It built 0.65 km² of coarse ground across 40 tiles with 46 background buildings and eight reconnecting edges adding 0.86 km. Its exported 2.58 km seam had zero missing samples and a maximum measured step under 0.01 mm. The CSP probe passed all 12 starting positions, plus 24 background-ground raycasts within 25 cm of their expected height. Frame rate was 424 minimum and 441 median. Eight north-up grove comparisons matched exported counts and revealed excess optical olive candidates on rocky scrub. The refined rule reduced those candidates from 90 to zero in a delineated rocky control while keeping 36 candidates on the two checked green and stone terraces. All 64 synthetic crowns still matched within 0.75 m. The full-circle check passed all 12 viewpoints after an independent mesh check explained all 78 first-pass flags as small DEM-versus-mesh skyline height differences. One route point was inside the frame and 52 m outside the local trial strip. The exact point is still required in S2. See `out/WP14/B/fullcircle-validated/`.
+
+The full experimental Stage 2 had 67.81 km² of additional ground across 4,121 tiles. It included 7,785 background building shells and 268,661 estimated tree crowns from aerial imagery and canopy data. The connector audit selected 626 mapped edges covering 101.72 km of outside centreline. The experimental build finished with 293.3 drivable road km. Its 1.36 GB KN5 exported in 1,558 s with 13.79 GiB peak process RSS and zero process swaps. System swap rose from 105 to 110 MiB early in road generation. Releasing cached pages for completed build files restored headroom, and the system swap count held through export. The cgroup reported zero build swap.
+
+The 83.85 km exported seam passed all 16,782 samples and had a maximum step below 0.06 mm. The static p95 draw-call estimate was 749 against the limit of 853. All ten selected 300 m grove comparisons matched emitted counts, and the four paired views are in `out/WP14/S2/fullcircle/four-interior-before-after.jpg`. The full-circle check rendered 420 views on all seven routes. It found 85 unresolved pixels across 17 views at 15 stations, with a maximum of 17 pixels in one view. Every route station had a road camera. See `out/WP14/S2/fullcircle/report.json` and `out/WP14/S2/grove-pairs/report.json`.
+
+The aggregate survey and 417 m loop climb matched the Build 9 limits. A stricter vertex comparison found that integrating the connectors in the common road solver changed 7,225 old vertices by more than 1 mm, up to 0.331 m. The Stage 2 experiment stays local. The build path now reports connector candidates as an audit. The Aaba terrain rerun with this correction matched all five reference road primitives byte-for-byte, passed the 517-sample seam and passed the in-game road and background raycasts. See `out/WP14/B-safe/` and `out/WP14/S2/road-height-comparison.json`.
 
 ## Blocked
 
 - **WP11.** The surveyed layout requires current start-line endpoints, operating direction, grid, pit paths and stalls, and hotlap position before the timed layout can be tested. Additional close overhead or geolocated ground views are needed for obscured asphalt edges and the remaining detailed items in the checklist. Two seam sites and four hole sites require cleanup, and the access driveway must connect to the paved site. The track remains a private trial until those exactness, access and timing checks pass.
+- **WP14.** Connecting the additional roads in the existing solver alters protected road elevations. A future connector build needs separate joins that preserve the existing surface. The full-circle check also has unresolved pixels at 15 stations. The background terrain is an opt-in trial and the connector search is an audit while those gates are open.
 
 ## For the road-height work
 

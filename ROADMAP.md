@@ -40,5 +40,5 @@ Status of each work package from [`handoff/WORK-PACKAGES.md`](handoff/WORK-PACKA
 | 🟡 | WP11 Karting Mania | Survey preview traced and tested in game. Exact current timing marks, pits, access and remaining trackside details are open. |
 | ⬜ | WP12 Btouratij and Nakhle fine detail | |
 | ⬜ | WP13 Detail outside the stage 1 box | |
-| ⬜ | WP14 Ground inside the loop | The middle of the loop is empty today. Fill with ground, grass and olive groves. |
+| 🟡 | WP14 Ground inside the loop | Aaba terrain tested in game with preserved road heights. Full Stage 2 gate is open on road connections and visibility. |
 | ⬜ | WP10 Speed bumps, night lighting, traffic | |
