@@ -34,7 +34,7 @@ State how each item was checked: static, render, probe, or owner drove it.
 | 2026-11-24 | Owner on the kart track | "needs to be super accurate. Right now, not so much." WP11 moved up to third in the order (after WP0 and WP8) and given explicit accuracy targets | Owner said so after driving build 9 |
 | 2026-11-24 | Owner gives the detail agent the machine for a day | Written as `BASE.md` section 5 rule 8, switched on by the words "the machine is yours" in the prompt: game may be started, installs allowed, packages chained, all resources used | Owner said so |
 | 2026-11-23 | WP0 Setup and baseline | Partly done: environment, fork, OSM snapshot (covers S2, not all of S3). Not done: `pytest`, baseline table, `verify_static.py`, `config.toml`. **Next** | |
-| | WP1 Game launch spike and probe | Not started. Only in a session where the owner says the game is free | |
+| 2026-11-24 | WP1 Game launch spike and probe | Gate passed on the Btouratij trial. Direct GE-Proton9-20 opened Assetto Corsa, loaded CSP 0.2.11 b3465 and ran the unopened Lua probe. | **In-game probe**, `out/poc/ingame/report.json`, raw logs and screenshots. |
 | | WP2 Export fixes | First version in use: edge wall and colliders kept, no live-mode script, 11 start points. Not done: rename to group `limite`, gate | |
 | | WP3 Lebanon profile | First version in use: region `lb`, flat roofs, tanks, stone colours, olives. Lane and pavement widths deliberately left at defaults. Gate not run | |
 | | WP4 Aerial imagery reader | First version in use: `XYZRaster`, zoom 18, lazy. The `ortofoto lb_xyz:` summary line and gate not done | |
@@ -73,13 +73,18 @@ The detail agent lists here any place where the road heights look wrong, with la
 | Meshes / triangles / texture MB | 680 / 831,849 / 50 |
 | Collider meshes in game export | expected 0 |
 
-## Game ring answers (fill in at WP1)
+## Game ring answers
 
-1. Does `acs.exe` start from a shell in this prefix?
-2. Does Custom Shaders Patch load that way?
-3. Does a Lua app with `LAZY = NONE` run unopened?
+1. Yes. Direct GE-Proton9-20 starts `acs.exe` with Steam running and signed in.
+2. Yes. The session log reports CSP 0.2.11 b3465 enabled.
+3. Yes. The `LAZY = NONE` app starts the session, places the car, records all four wheel contacts and the road raycast, saves screenshots and closes the game without opening the app window.
 
-Working launch command:
+```sh
+.venv/bin/python koura/ac/launch.py btouratij_poc --method proton --points out/poc/ingame/trial-points.json
+.venv/bin/python koura/ac/probe_report.py btouratij_poc out/poc/ingame
+```
+
+The initial attempt exited 53 with `SteamAPI_Init() failed; connect to global user failed` while `steamwebhelper` was crash-looping. A clean Steam restart without `-silent` restored the window and automatic sign-in. The direct probe then completed in 35.23 s. All wheels reported `ROAD`, all three downward raycasts hit, and maximum placement drift was 1.33 m. Minimum 315 FPS and median 447 FPS were observed at the trial spawn. These readings cover the small trial and serve as a probe smoke test. The game closed cleanly and the restored `race.ini` matched its pre-launch SHA-256.
 
 ## Open questions for the owner, with the default used until answered
 

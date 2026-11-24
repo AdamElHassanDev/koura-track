@@ -13,7 +13,7 @@ Status of each work package from [`handoff/WORK-PACKAGES.md`](handoff/WORK-PACKA
 | | Work package | State |
 |---|---|---|
 | 🟡 | WP0 Setup and baseline | Environment, generator fork and map-data snapshot done. Baseline table and static check script not done. |
-| ⬜ | WP1 Game launch and probe | The owner tests by driving; no automated in-game probe yet. |
+| ✅ | WP1 Game launch and probe | Trial passed the automated game probe on Proton with CSP 0.2.11. |
 | 🟡 | WP2 Export fixes for free roam | Edge wall, no live-mode script, start points done. |
 | 🟡 | WP3 Lebanon profile | First version in use. |
 | 🟡 | WP4 Aerial imagery reader | Working, zoom 18. |
