@@ -4,6 +4,11 @@ Every build that was installed in the game, newest first. "Driven" means the own
 
 Smoothness figures come from `koura/survey.py`: the share of road length where the slope changes by more than 2 % (or 5 %) within 8 m. A race-track-smooth road has none.
 
+## Koura combined preview · Network street lighting · 2026-11-24
+
+- Added 5,562 copies of the warm Btouratij mosque-side lattice fixture across every built road class. The original placements are retained. The additions follow the built road network with clearance from pavement, structures and water.
+- All nine 21:00 CSP stops passed, covering main roads, village streets, a service road and an unpaved track. The map is still listed as **Koura combined preview**.
+
 ## Koura combined preview · Karting Mania surface and edges · 2026-11-24
 
 - The same `koura_combined` track now preserves the grass gaps between nearby karting turns. It removes 1,910 m² of generated filler, including the overlapping strips that tore across the asphalt in-game. All surveyed racing triangles and the remaining road faces match the previous preview exactly.
