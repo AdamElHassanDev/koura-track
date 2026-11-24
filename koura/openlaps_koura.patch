@@ -1611,7 +1611,7 @@ index 0000000..6a3d1fb
 +    return {**osm, "ways": list(ways.values())} if counts["applied"] else osm
 diff --git a/openlaps/koura_scenery.py b/openlaps/koura_scenery.py
 new file mode 100644
-index 0000000..3762d6c
+index 0000000..60d87e1
 --- /dev/null
 +++ b/openlaps/koura_scenery.py
 @@ -0,0 +1,635 @@
@@ -2142,7 +2142,7 @@ index 0000000..3762d6c
 +        offset = _vector(emitter["offset"], 3, -0.5, 1, "light offset fraction")
 +        if (np.abs(offset[:2]) > 0.5).any() or offset[2] <= 0:
 +            raise ValueError("light offset must lie within the footprint and above ground")
-+        color = tuple(_vector(emitter["rgb"], 3, 0, 255, "light RGB"))
++        color = tuple((_vector(emitter["rgb"], 3, 0, 255, "light RGB") / 255).round(5))
 +        intensity = _number(emitter["intensity"], 0.01, 20, "light intensity")
 +        distance = _number(emitter["range_m"], 1, 80, "light range")
 +        lights.append((offset * size, color, intensity, distance))
@@ -4122,10 +4122,10 @@ index 0000000..e7a88f5
 +    np.testing.assert_allclose(sign.uv[:, 1], [0.05, 0.05, 1, 1])
 diff --git a/tests/test_koura_scenery_details.py b/tests/test_koura_scenery_details.py
 new file mode 100644
-index 0000000..7ed4307
+index 0000000..fa328b7
 --- /dev/null
 +++ b/tests/test_koura_scenery_details.py
-@@ -0,0 +1,85 @@
+@@ -0,0 +1,86 @@
 +import json
 +
 +import numpy as np
@@ -4178,6 +4178,7 @@ index 0000000..7ed4307
 +    assert "INCLUDE=common/conditions.ini" in cfg
 +    light = cfg.split("[LIGHT_0]\n", 1)[1]
 +    assert "POSITION=2.60, 107.20, -2.00" in light
++    assert "COLOR=1.0, 0.86667, 0.7098, 3.0" in light
 +    assert "CONDITION=NIGHT_SMOOTH" in light
 +
 +

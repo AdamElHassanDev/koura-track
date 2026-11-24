@@ -4,6 +4,13 @@ Every build that was installed in the game, newest first. "Driven" means the own
 
 Smoothness figures come from `koura/survey.py`: the share of road length where the slope changes by more than 2 % (or 5 %) within 8 m. A race-track-smooth road has none.
 
+## Koura Btouratij frontage review · 2026-11-24 · in-game probe
+
+- Installed as the separate Stage 1 track `koura_btouratij_review`. From the Btouratij start, continue past the memorial toward the photographed shrine, palm gardens, arched villa and flat-roof carport.
+- The first reviewed stretch includes six paved areas, photographed façade and wall materials, the pierced villa fence and gate, and 16 surveyed trees. The Oliva forecourt has its photographed paver finish.
+- Five surveyed lattice poles carry six working lamp heads. Four CSP 0.2.11 probe stops passed at 11:00 and 21:00, with median frame rates of 349 and 334 FPS on the reference machine.
+- All 139 Stage 1 road primitives match the previous build. The wider village detail and release checks are still open.
+
 ## Koura storefront and footage candidate · 2026-11-24 · in-game probe
 
 - Installed as a separate private review track, `koura_wp9_s2`. Start in Btouratij to see the photographed bilingual direction sign, the workshop façades and gates, and the surveyed memorial island and railing.
