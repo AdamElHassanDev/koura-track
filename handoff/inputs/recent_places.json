@@ -10,16 +10,17 @@
    "name": "Knots",
    "kind": "commercial and leisure complex",
    "village": "Btouratij, Tripoli–Kousba Main Road",
-   "lat": null,
-   "lon": null,
-   "side_of_road": null,
+   "lat": 34.3635085,
+   "lon": 35.8418615,
+   "side_of_road": "northwest of Tripoli–Kousba Main Road",
    "opened": "opening reported 2026-09-20",
    "sign_text": "KNOTS",
-   "status": "Opening and contractor references confirm the name, main road and distinctive yellow and blue frontage. The access is present per the owner’s trial drive. The property and building orientation still need matching to recent imagery before placement.",
+   "status": "Verified named business pin near the entrance. The first private S1 review models the two photographed wings, curved blue glazing, original wordmark, porch lights and the concrete terrace. The finished footprint is provisional. The inferred frontage line has roughly 8 m uncertainty. Preserve existing access way 1301153378.",
    "new_building": true,
    "sources": [
     "https://www.eidengineering.com/projects",
-    "https://twitter.com/elie_al_khoury/status/2101664660999061785"
+    "https://twitter.com/elie_al_khoury/status/2101664660999061785",
+    "https://www.google.com/maps?cid=9019378702668474803"
    ]
   },
   {
